@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Real-time streams, one command at a time: Kafka to Spark Structured Streaming</title>
+<meta name="description" content="Run every command of the Handling Real-time Data Streams lab in the browser and watch what each one does to the machine, Kafka and Spark.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏱️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+:root{
+  --paper:#F2F4F6; --surface:#FFFFFF; --ink:#16202B; --muted:#58646F; --rule:#D3D9DF;
+  --signal:#0B6E69; --signal-soft:#DCEFEC; --danger:#B42318; --danger-soft:#FBE4E1; --ok:#2E7D32; --ok-soft:#E5F2E6;
+  --late:#C2410C; --late-soft:#FCE8DC; --spark:#9A3412; --kafka:#1D4ED8; --kafka-soft:#E3EAFC;
+  --term-bg:#101820; --term-fg:#D6DEE6; --term-dim:#8193A3; --term-prompt:#7EE2A8; --term-path:#8CC4FF;
+  --bs-body-bg:var(--paper); --bs-body-color:var(--ink); --bs-border-color:var(--rule);
+  --bs-body-font-family:'Archivo',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{font-size:1rem;line-height:1.55}
+h1,h2,h3{font-stretch:118%;font-weight:760;letter-spacing:-.01em;line-height:1.1}
+h1{font-size:clamp(2rem,4.6vw,3.4rem);max-width:20ch}
+h2{font-size:clamp(1.45rem,2.6vw,2rem)}
+h3{font-size:1.08rem;font-stretch:108%;font-weight:720}
+p{max-width:70ch}
+code{color:var(--ink);background:#E4E9EE;padding:.05em .3em;border-radius:3px;font-size:.88em}
+.muted{color:var(--muted)}
+.tnum{font-variant-numeric:tabular-nums}
+.btn{font-weight:600;border-radius:6px}
+.btn-ink{background:var(--ink);color:#fff;border:1px solid var(--ink)}
+.btn-ink:hover,.btn-ink:focus{background:#2A3744;color:#fff}
+.btn-ink:disabled{background:#9AA5AF;border-color:#9AA5AF;color:#fff}
+.btn-line{background:var(--surface);color:var(--ink);border:1px solid var(--rule)}
+.btn-line:hover{border-color:var(--ink);color:var(--ink)}
+.btn:focus-visible{outline:3px solid var(--signal);outline-offset:2px;box-shadow:none}
+.topnav{background:rgba(242,244,246,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--rule)}
+.brand{font-weight:780;font-stretch:120%;color:var(--ink);text-decoration:none}
+.topnav .nav-link{color:var(--muted);font-weight:600;font-size:.95rem;padding:.35rem .6rem}
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:1rem 1.1rem}
+.panel-title{font-weight:720;font-size:.95rem;margin-bottom:.5rem}
+
+/* intro */
+.hero{padding:2.75rem 0 1.5rem}
+.lead-text{font-size:1.15rem;color:var(--muted);max-width:62ch}
+.concepts{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem}
+.concept{border-top:2px solid var(--ink);padding-top:.5rem}
+.concept h3{margin-bottom:.25rem}
+.concept p{font-size:.93rem;margin:0}
+.flowline{display:flex;flex-wrap:wrap;align-items:stretch;gap:.4rem;margin-top:1rem}
+.flowline .fn{border:1.5px solid var(--rule);background:#fff;border-radius:8px;padding:.45rem .7rem;font-size:.88rem;font-weight:600}
+.flowline .fn small{display:block;color:var(--muted);font-weight:500;font-size:.75rem}
+.flowline .fa{align-self:center;color:var(--muted);font-weight:700}
+.fn.k{border-color:var(--kafka)} .fn.s{border-color:var(--spark)} .fn.p{border-color:var(--signal)}
+
+/* step rail */
+.rail{display:flex;gap:.4rem;overflow-x:auto;padding:.25rem 0 .6rem;scrollbar-width:thin}
+.rail button{flex:0 0 auto;border:1.5px solid var(--rule);background:#fff;border-radius:8px;padding:.35rem .6rem;font-weight:650;font-size:.85rem;color:var(--muted);text-align:left;line-height:1.2}
+.rail button b{display:block;font-size:1rem;color:var(--ink);font-stretch:115%}
+.rail button.cur{border-color:var(--ink);box-shadow:inset 0 -3px 0 var(--ink);color:var(--ink)}
+.rail button.done b::after{content:" ✓";color:var(--ok)}
+
+/* step + commands */
+.step-head h2{margin-bottom:.25rem;font-size:clamp(1.25rem,2vw,1.6rem)}
+.cmd-list{max-height:min(52vh,560px);overflow:auto;padding-right:4px;scrollbar-width:thin}
+.cmd{border:1.5px solid var(--rule);border-radius:9px;background:#fff;margin-bottom:.6rem;overflow:hidden}
+.cmd.next{border-color:var(--ink)}
+.cmd.done{border-color:#B9DCC0}
+.cmd-top{display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;border-bottom:1px solid var(--rule);background:#F7F9FA}
+.term-badge{font-size:.72rem;font-weight:700;border-radius:4px;padding:1px 6px;background:var(--ink);color:#fff;white-space:nowrap}
+.term-badge.T2{background:#5B3FA8}.term-badge.T3{background:var(--spark)}.term-badge.T4{background:#0E7490}
+.cmd-label{font-size:.82rem;font-weight:650;color:var(--muted);flex:1;min-width:0}
+.cmd pre{margin:0;padding:.55rem .7rem;font-size:.8rem;line-height:1.45;background:#FBFCFD;max-height:260px;overflow:auto;white-space:pre}
+.cmd .run{min-width:92px}
+.cmd .status{font-size:.78rem;font-weight:700;white-space:nowrap}
+.cmd.done .status{color:var(--ok)}
+.cmd-explain{padding:.6rem .75rem;border-top:1px dashed var(--rule);font-size:.9rem;background:#fff}
+.cmd-explain p{margin:.15rem 0 .35rem}
+.cmd-explain .see{color:var(--signal);font-weight:600}
+.step-takeaway{border:2px solid var(--ink);border-radius:10px;padding:.9rem 1.1rem;background:#fff;margin-top:.75rem}
+.step-takeaway ul{margin:.25rem 0 0;padding-left:1.1rem}
+.step-takeaway li{margin:.2rem 0}
+.ff-box{border:1.5px dashed var(--rule);border-radius:9px;padding:.75rem .9rem;margin-bottom:.75rem;background:#fff}
+
+/* terminal */
+.term-wrap{border-radius:10px;overflow:hidden;border:1px solid #22303C;background:var(--term-bg)}
+.term-tabs{display:flex;gap:2px;background:#1B2631;padding:4px 4px 0}
+.term-tabs button{border:0;background:#24313D;color:#AFC0CE;font-size:.78rem;font-weight:650;padding:.35rem .7rem;border-radius:6px 6px 0 0;display:flex;align-items:center;gap:.35rem}
+.term-tabs button.on{background:var(--term-bg);color:#fff}
+.term-tabs .dot{width:7px;height:7px;border-radius:50%;background:#5C6B78}
+.term-tabs .dot.busy{background:#F2C14E}.term-tabs .dot.py{background:#F28C38}
+.term-body{height:300px;overflow:auto;padding:.6rem .75rem;margin:0;color:var(--term-fg);font-size:.76rem;line-height:1.45;white-space:pre;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.term-body .pr{color:var(--term-prompt);font-weight:700}
+.term-body .pa{color:var(--term-path);font-weight:700}
+.term-body .dim{color:var(--term-dim)}
+.term-body .err{color:#FF9B8F}
+.term-body .ok{color:#8EE6A3}
+.term-body .warn{color:#F2C14E}
+.term-body .late{color:#FFB37A}
+
+/* system view */
+.sys{position:sticky;top:64px;max-height:calc(100vh - 76px);overflow:auto;padding-right:2px}
+.clockbar{display:flex;flex-wrap:wrap;gap:.4rem 1rem;align-items:baseline;background:var(--ink);color:#fff;border-radius:9px;padding:.45rem .8rem;margin-bottom:.6rem;font-size:.82rem}
+.clockbar .clk{font-size:1.25rem;font-weight:780;font-stretch:118%;font-variant-numeric:tabular-nums}
+.clockbar .spd{color:#C6D2DC}
+.zone{border:1.5px solid var(--rule);background:#fff;border-radius:10px;padding:.65rem .75rem;margin-bottom:.6rem;transition:box-shadow .25s,border-color .25s}
+.zone.focus{border-color:var(--signal);box-shadow:0 0 0 3px var(--signal-soft)}
+.zone-h{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;margin-bottom:.4rem}
+.zone-h b{font-stretch:112%;font-size:.95rem}
+.zone-h span{font-size:.75rem;color:var(--muted)}
+.machine-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:.7rem}
+.fs{font-size:.76rem;line-height:1.5;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;max-height:160px;overflow:auto;background:#F7F9FA;border:1px solid var(--rule);border-radius:6px;padding:.35rem .5rem}
+.fs .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs .d{color:var(--ink);font-weight:700}
+.fs .f{color:#3B4A57}
+.fs .new{background:#FFF4C2;border-radius:3px}
+.fs .cwd{font-family:'Archivo',sans-serif;font-size:.64rem;font-weight:700;border-radius:3px;padding:0 4px;margin-left:4px;color:#fff;background:var(--ink)}
+.fs .cwd.T2{background:#5B3FA8}.fs .cwd.T3{background:var(--spark)}.fs .cwd.T4{background:#0E7490}
+.procs{display:flex;flex-direction:column;gap:.3rem}
+.proc{border:1.5px solid var(--rule);border-radius:6px;padding:.2rem .45rem;font-size:.76rem;display:grid;grid-template-columns:1fr auto;gap:0 .4rem;background:#fff;line-height:1.3}
+.proc b{font-size:.8rem}
+.proc small{color:var(--muted);font-size:.7rem;grid-column:1 / -1}
+.proc .st{font-size:.68rem;font-weight:700;color:var(--ok)}
+.proc.starting .st{color:#B7861A}.proc.stopping .st{color:var(--danger)}
+.proc.jvm{border-left:4px solid #E76F00}.proc.py{border-left:4px solid #3776AB}
+.none{color:var(--muted);font-size:.8rem;font-style:italic}
+.broker{border:2px solid var(--kafka);border-radius:8px;padding:.45rem .55rem}
+.broker.off{border-color:var(--rule);border-style:dashed;opacity:.75}
+.topic{margin-top:.4rem}
+.topic-h{font-size:.78rem;font-weight:700;display:flex;justify-content:space-between}
+.topic-h small{font-weight:500;color:var(--muted)}
+.lane{display:grid;grid-template-columns:28px 1fr 72px;gap:.4rem;align-items:center;margin-top:.25rem}
+.topic-h+.lane{margin-top:1.15rem}
+.lane .pl{font-size:.72rem;font-weight:750}
+.lane .cnt{font-size:.7rem;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.track{position:relative;height:22px;background:var(--kafka-soft);border-radius:4px;overflow:visible}
+.track .tail{position:absolute;right:2px;top:3px;bottom:3px;display:flex;gap:1px;flex-direction:row-reverse;overflow:hidden;left:2px}
+.track .tail i{flex:0 0 5px;height:100%;background:#7D9BE6;border-radius:1px}
+.track .tail i.late{background:var(--late)}
+.bm{position:absolute;top:-4px;bottom:-4px;width:3px;border-radius:2px;transform:translateX(-1.5px)}
+.bm span{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-size:.6rem;font-weight:700;white-space:nowrap;background:#fff;padding:0 2px;border-radius:2px}
+.legend{display:flex;flex-wrap:wrap;gap:.2rem .8rem;font-size:.7rem;color:var(--muted);margin-top:.35rem}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.mini-topics{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem}
+.mini-topics span{font-size:.7rem;border:1px solid var(--rule);border-radius:4px;padding:0 5px;background:#F7F9FA}
+.spark-top{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;margin-bottom:.4rem}
+.chipv{font-size:.7rem;font-weight:700;border:1.5px solid var(--spark);color:var(--spark);border-radius:4px;padding:0 5px;background:#fff}
+.chipv.new{background:#FFF4C2}
+.queries{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.45rem}
+.qrow{display:grid;grid-template-columns:auto 1fr auto;gap:.5rem;align-items:center;font-size:.76rem;border:1.5px solid var(--rule);border-radius:6px;padding:.25rem .45rem}
+.qrow.on{border-color:var(--spark)}
+.qrow .qn{font-weight:750}
+.qrow .qd{color:var(--muted)}
+.qrow .qt{font-variant-numeric:tabular-nums;font-weight:700;color:var(--spark)}
+.qrow.off .qt{color:var(--muted)}
+.pipe{display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;margin:.3rem 0 .5rem}
+.pipe .pn{font-size:.7rem;border:1.5px solid var(--rule);border-radius:5px;padding:.1rem .4rem;background:#fff;line-height:1.25}
+.pipe .pn small{display:block;color:var(--muted);font-size:.64rem}
+.pipe .pn.src{border-color:var(--kafka)} .pipe .pn.st{border-color:var(--spark);background:#FFF5EE} .pipe .pn.sink{border-color:var(--signal)}
+.pipe .ar{color:var(--muted);font-size:.75rem}
+.batches{display:flex;align-items:flex-end;gap:3px;height:54px;border-bottom:1px solid var(--rule);margin-bottom:.15rem}
+.batches .b{flex:0 0 22px;background:var(--spark);border-radius:2px 2px 0 0;position:relative;min-height:2px}
+.batches .b.empty{background:#D9C3B5}
+.batches .b span{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-size:.58rem;color:var(--muted)}
+.view-title{font-size:.78rem;font-weight:720;margin:.9rem 0 .3rem;display:flex;justify-content:space-between;gap:.5rem}
+.view-title small{font-weight:500;color:var(--muted)}
+.grid-wrap{overflow-x:auto}
+table.wg{border-collapse:separate;border-spacing:2px;font-size:.66rem;font-variant-numeric:tabular-nums}
+table.wg th{font-weight:700;text-align:center;padding:0 2px;white-space:nowrap}
+table.wg td{min-width:46px;text-align:center;border-radius:3px;padding:2px 0;background:#F3EDE8;color:var(--ink)}
+table.wg td.h{background:transparent;text-align:left;font-weight:700;min-width:40px}
+table.wg td.open{background:#FFE1CC}
+table.wg td.upd{background:var(--spark);color:#fff}
+table.wg td.rel{background:#ECEFF2;color:#8A96A1}
+table.wg td.emit{background:var(--ok-soft);color:var(--ok);font-weight:700}
+table.wg th.wmcol{box-shadow:inset 3px 0 0 var(--danger)}
+.wmnote{font-size:.72rem;color:var(--danger);font-weight:650}
+.droplist{font-size:.7rem;color:var(--late);margin-top:.25rem;font-family:ui-monospace,Menlo,Consolas,monospace}
+.cmp{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;align-items:end;height:110px;border-bottom:1px solid var(--rule)}
+.cmp .c{display:flex;gap:2px;align-items:flex-end;height:100%}
+.cmp .c i{flex:1;border-radius:2px 2px 0 0;min-height:1px}
+.cmp .c i.n{background:var(--spark)} .cmp .c i.w{background:var(--kafka)}
+.cmp-l{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;font-size:.6rem;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
+.rows{font-size:.68rem;font-family:ui-monospace,Menlo,Consolas,monospace;background:#F7F9FA;border:1px solid var(--rule);border-radius:6px;padding:.3rem .45rem;max-height:120px;overflow:auto;white-space:pre}
+.sinkrow{display:grid;grid-template-columns:62px 1fr;gap:.4rem;align-items:center;margin-top:.3rem}
+.sinkrow b{font-size:.72rem}
+.mins{display:flex;gap:3px;flex-wrap:wrap}
+.mins span{font-size:.6rem;min-width:40px;text-align:center;border-radius:3px;padding:2px 0;border:1.5px solid transparent;font-variant-numeric:tabular-nums}
+.mins .w{background:var(--ok-soft);color:var(--ok);font-weight:700}
+.mins .p{background:#FFE1CC;color:var(--spark)}
+.mins .x{background:#ECEFF2;color:#8A96A1}
+.mins .gap{border-color:var(--late)}
+.ck{font-size:.72rem;margin-top:.35rem}
+.ck code{font-size:.68rem}
+
+/* conclusion */
+.concl{padding:3rem 0 2rem;border-top:1px solid var(--rule);margin-top:2.5rem}
+.checklist{list-style:none;padding:0;margin:0}
+.checklist li{padding:.45rem 0 .45rem 2rem;position:relative;border-bottom:1px dashed var(--rule)}
+.checklist li::before{content:"";position:absolute;left:0;top:.55rem;width:20px;height:20px;border:2px solid var(--rule);border-radius:5px;background:#fff}
+.checklist li.got::before{border-color:var(--ok);background:var(--ok)}
+.checklist li.got::after{content:"✓";position:absolute;left:5px;top:.42rem;color:#fff;font-weight:800;font-size:.85rem}
+.checklist small{display:block;color:var(--muted)}
+.lessons{counter-reset:l;list-style:none;padding:0;margin:0}
+.lessons li{counter-increment:l;padding:.5rem 0 .5rem 2.3rem;position:relative;border-bottom:1px dashed var(--rule)}
+.lessons li::before{content:counter(l);position:absolute;left:0;top:.45rem;width:1.7rem;height:1.7rem;border-radius:50%;background:var(--ink);color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:.85rem}
+footer{border-top:1px solid var(--rule);padding:1.5rem 0 2.5rem;color:var(--muted);font-size:.88rem}
+#flight{position:fixed;inset:0;pointer-events:none;z-index:2000}
+.dot{position:absolute;left:0;top:0;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:2px}
+@media (max-width: 991.98px){ .sys{position:static;max-height:none} .machine-grid{grid-template-columns:1fr} .term-body{height:280px} }
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
+</style>
+</head>
+<body>
+<div id="flight" aria-hidden="true"></div>
+<nav class="topnav sticky-top">
+  <div class="container-xxl d-flex flex-wrap justify-content-between align-items-center py-2 gap-2">
+    <a class="brand" href="#top">Real-time streams, one command at a time</a>
+    <div class="nav">
+      <a class="nav-link" href="#ideas">Ideas first</a>
+      <a class="nav-link" href="#sim">Simulator</a>
+      <a class="nav-link" href="#conclusion">What the lab teaches</a>
+    </div>
+  </div>
+</nav>
+
+<main id="top">
+<header class="hero">
+  <div class="container-xxl">
+    <h1>Run the streaming lab here, and watch what every command does.</h1>
+    <p class="lead-text mt-3">Each step of <em>Handling Real-time Data Streams</em> is below, command by command. Press <strong>Run</strong> and the terminal answers as your VM would, while the right side shows what changed: folders and files, running processes, the Kafka topic filling up, and Spark's micro-batches, windows and watermark.</p>
+    <div class="flowline" aria-label="What this lab builds">
+      <div class="fn p">producer.py<small>Python, emits JSON events</small></div><div class="fa">›</div>
+      <div class="fn k">Kafka topic <code>live-events</code><small>3 partitions, key = host</small></div><div class="fa">›</div>
+      <div class="fn s">Spark Structured Streaming<small>parse, window, watermark</small></div><div class="fa">›</div>
+      <div class="fn">Console, then Parquet files<small>/tmp/lab2b/out, with a checkpoint</small></div>
+    </div>
+  </div>
+</header>
+
+<section id="ideas" class="pb-4">
+  <div class="container-xxl">
+    <h2 class="mb-3">Five ideas you will see happen</h2>
+    <div class="concepts">
+      <div class="concept"><h3>A stream is a growing table</h3><p>Spark runs your DataFrame code again on each <strong>micro-batch</strong> of new rows and updates the result. Watch the batch bars on the right.</p></div>
+      <div class="concept"><h3>Event time, not arrival time</h3><p>Windows use <code>event_time</code>, when the thing happened. 2% of events are backdated by 3 to 30 minutes, shown in orange, to imitate devices that buffered offline.</p></div>
+      <div class="concept"><h3>The watermark</h3><p>"Newest event seen, minus N." Events older than that are dropped, and windows that can no longer change are released from memory.</p></div>
+      <div class="concept"><h3>Output modes</h3><p><strong>update</strong> prints windows as they change. <strong>append</strong> writes a window only once the watermark has closed it, so files appear late, on purpose.</p></div>
+      <div class="concept"><h3>The checkpoint</h3><p>A folder holding the Kafka offsets read and the window state. Restart with it and Spark continues exactly where it stopped.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="sim" class="pt-3">
+  <div class="container-xxl">
+    <h2 class="mb-1">The simulator</h2>
+    <p class="muted mb-2">Run commands in order. Four terminals are used, just as on the VM: T1 for Kafka admin, T2 for the producer, T3 for the main PySpark shell, and T4 for checking files. Simulated time runs 6 times faster than real time, and "wait" commands run faster still.</p>
+    <div class="rail" id="rail" role="tablist" aria-label="Lab steps"></div>
+    <div class="row g-3 mt-1">
+      <div class="col-lg-6">
+        <div id="stepPane"></div>
+        <div class="term-wrap mt-2">
+          <div class="term-tabs" id="termTabs" role="tablist" aria-label="Terminals"></div>
+          <pre class="term-body" id="termBody" aria-live="polite" tabindex="0"></pre>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="sys" id="sys">
+          <div class="clockbar"><span>Simulated time</span><span class="clk" id="clk">10:00:00</span><span class="spd" id="spd">running 6× faster than real time</span></div>
+          <div class="zone" id="zMachine">
+            <div class="zone-h"><b>The machine (ubuntuOS)</b><span>files and running processes</span></div>
+            <div class="machine-grid">
+              <div><div class="panel-title mb-1" style="font-size:.8rem">Folders and files</div><div class="fs" id="fs"></div></div>
+              <div><div class="panel-title mb-1" style="font-size:.8rem">Running processes</div><div class="procs" id="procs"></div>
+                <div class="legend"><span><i style="background:#E76F00"></i>Java process (shows in <code>jps</code>)</span><span><i style="background:#3776AB"></i>Python process</span></div></div>
+            </div>
+          </div>
+          <div class="zone" id="zKafka">
+            <div class="zone-h"><b>Kafka broker</b><span id="kState">stopped</span></div>
+            <div id="kafka"></div>
+          </div>
+          <div class="zone" id="zSpark">
+            <div class="zone-h"><b>Spark</b><span id="sState">not started</span></div>
+            <div id="spark"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="concl" id="conclusion">
+  <div class="container-xxl">
+    <h2 class="mb-3">What this lab teaches</h2>
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <ol class="lessons">
+          <li><strong>A stream is a table that keeps growing.</strong> You wrote ordinary DataFrame code; Spark re-ran it on each micro-batch of new Kafka records and updated the result. What streaming adds is time, state and output mode.</li>
+          <li><strong>Check the source before you debug the job.</strong> An empty streaming output is the normal symptom of almost every mistake, so the console consumer in step 3 is the first thing to run, every time. Kafka hands Spark binary <code>key</code> and <code>value</code> columns, which you cast to string and parse.</li>
+          <li><strong>Declare the schema and cast the time.</strong> An explicit schema stays the same across restarts. Until <code>event_time</code> is a real timestamp, every window is empty.</li>
+          <li><strong>Window on event time and choose a watermark.</strong> The watermark decides how long to wait for stragglers. Events older than it are dropped, and windows older than it are released, which is what keeps memory flat for days instead of growing until the job crashes.</li>
+          <li><strong>Output mode follows the sink.</strong> <code>update</code> is for watching: rows appear as they change. <code>append</code> is for files: each window is written once, after the watermark closes it, so an empty folder for the first minutes is correct.</li>
+          <li><strong>The checkpoint is part of the application.</strong> It holds the Kafka offsets and the window state. Restarting with it processed the gap minute and wrote no duplicates; a fresh checkpoint started from "latest" and never saw the earlier data.</li>
+          <li><strong>Health is two comparisons.</strong> Processing rate must keep up with input rate, and state rows must level off once the watermark works. Either one growing without end is a job that will fail.</li>
+        </ol>
+        <div class="panel mt-3">
+          <div class="panel-title">The step 8 question: which count is right?</div>
+          <p class="mb-2">Neither is wrong; they answer different requirements. The narrow 30-second watermark gives final answers quickly and uses little memory, which suits alerting, where a result that arrives 25 minutes late is useless. The wide 60-minute watermark counts the stragglers, which suits billing, audit or compliance reporting, where completeness matters more, and it pays for that with more memory and later final results.</p>
+          <p class="mb-0">So the watermark is a business decision expressed in code: how late can data be and still matter?</p>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="panel">
+          <div class="panel-title">Your deliverable, collected as you run the simulator</div>
+          <ul class="checklist" id="checklist">
+            <li data-k="producer">Producer script<small>written in step 2: <code>~/lab2b/producer.py</code></small></li>
+            <li data-k="script">Streaming script<small>the definitions from steps 4 to 9</small></li>
+            <li data-k="windows">Console output with three windowed results<small>step 7: three batches of the per-minute query</small></li>
+            <li data-k="late">Evidence that late events were dropped<small>step 8: wide watermark counted windows the narrow one dropped</small></li>
+            <li data-k="ckpt">Restart with the checkpoint<small>step 10: gap minute written, no duplicates</small></li>
+            <li data-k="fresh">Restart without it<small>step 10: fresh checkpoint started from latest and missed earlier data</small></li>
+            <li data-k="metrics">Health metrics recorded<small>step 11: input rate, processing rate, state rows</small></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+<footer><div class="container-xxl">Big Data Analytics, Lab II: Handling Real-time Data Streams. Outputs are representative of a real run: IDs, PIDs, version numbers and counts will differ on your VM. Kafka's partitioner, Spark's batch timing and watermark updates are simplified so they can be watched in class.</div></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function(){
+"use strict";
+const $=(s,r=document)=>r.querySelector(s);
+const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const hasGsap=typeof window.gsap!=='undefined';
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const pad2=n=>String(n).padStart(2,'0');
+const HOME='/home/hadoop';
+const BASE=10*3600; // simulated clock starts at 10:00:00
+function hms(t){ const s=Math.floor(BASE+t); return pad2(Math.floor(s/3600)%24)+':'+pad2(Math.floor(s/60)%60)+':'+pad2(((s%60)+60)%60); }
+function hm(t){ return hms(t).slice(0,5); }
+function stamp(t){ return '2026-09-28 '+hms(t); }
+const HOSTS=[...Array(10).keys()].map(i=>'host'+pad2(i));
+const HOST_PART=[1,0,2,2,1,0,0,2,1,0]; // stands in for Kafka's murmur2 hash of the key
+const ACTIONS=['login_ok','login_failed','file_read','port_scan','logout'];
+
+/* ================= simulation state ================= */
+const S={
+  t:0, speed:6, busy:false,
+  fs:new Map(), fresh:new Set(),
+  terms:{T1:{label:'T1  Kafka admin',cwd:HOME,mode:'shell',lines:[]},T2:{label:'T2  producer',cwd:HOME,mode:'shell',lines:[]},
+         T3:{label:'T3  PySpark',cwd:HOME,mode:'shell',lines:[]},T4:{label:'T4  checks',cwd:HOME,mode:'shell',lines:[]}},
+  activeTerm:'T1',
+  procs:[],
+  kafka:{state:'stopped',readyAt:0,stopAt:0,live:null,sec:[812,640,731]},
+  producer:{on:false,sent:0,carry:0},
+  consumerPeek:null,
+  spark:{T3:false,T4:false,defs:[],fresh:new Set()},
+  vars:{}, queries:[], focusQ:null,
+  ck:{}, files:{}, gap:null,
+  evidence:{}, pid:4200
+};
+function addFs(path,type,note){ const parts=path.split('/'); for(let i=2;i<parts.length;i++){ const pre=parts.slice(0,i).join('/'); if(pre!=='/home'&&!S.fs.has(pre)){ S.fs.set(pre,{type:'dir'}); } } if(!S.fs.has(path)){ S.fs.set(path,{type,note}); S.fresh.add(path); setTimeout(()=>S.fresh.delete(path),4000); } }
+function rmFs(prefix){ [...S.fs.keys()].forEach(k=>{ if(k===prefix||k.startsWith(prefix+'/')) S.fs.delete(k); }); }
+// starting filesystem from earlier labs
+['/opt/kafka','/opt/kafka/bin','/opt/kafka/config','/opt/kafka/config/kraft','/opt/spark','/opt/spark/bin','/tmp','/tmp/kraft-combined-logs',HOME].forEach(p=>S.fs.set(p,{type:'dir'}));
+S.fs.set('/opt/kafka/config/kraft/server.properties',{type:'file'});
+S.fs.set('/tmp/kraft-combined-logs/security-events-0',{type:'dir'});S.fs.set('/tmp/kraft-combined-logs/security-events-1',{type:'dir'});S.fs.set('/tmp/kraft-combined-logs/security-events-2',{type:'dir'});
+S.fs.set('/tmp/kraft-combined-logs/__consumer_offsets-0 … 49',{type:'dir'});
+S.fresh.clear();
+
+function newPid(){ S.pid+=rnd(7,180); return S.pid; }
+function addProc(key,name,jvm,term,note,state='running'){ S.procs=S.procs.filter(p=>p.key!==key); S.procs.push({key,name,pid:newPid(),jvm,term,note,state}); }
+function rmProc(key){ S.procs=S.procs.filter(p=>p.key!==key); }
+function proc(key){ return S.procs.find(p=>p.key===key); }
+
+/* ================= terminals ================= */
+const MAXL=450;
+function tpush(term,html){ const T=S.terms[term]; T.lines.push(html); if(T.lines.length>MAXL) T.lines.splice(0,T.lines.length-MAXL); termDirty=true; }
+function out(term,text,cls){ String(text).split('\n').forEach(l=>tpush(term,cls?`<span class="${cls}">${esc(l)}</span>`:esc(l))); }
+function promptHtml(term){ const T=S.terms[term]; if(T.mode==='py') return '<span class="pr">&gt;&gt;&gt; </span>'; const cwd=T.cwd===HOME?'~':T.cwd.startsWith(HOME+'/')?'~'+T.cwd.slice(HOME.length):T.cwd; return `<span class="pr">hadoop@ubuntuOS</span>:<span class="pa">${esc(cwd)}</span>$ `; }
+function echo(term,code){
+  const T=S.terms[term], lines=code.split('\n');
+  lines.forEach((l,i)=>{
+    const pre=i===0?promptHtml(term):(T.mode==='py'?'<span class="pr">... </span>':'<span class="dim">&gt; </span>');
+    tpush(term,pre+esc(l));
+  });
+  if(T.mode==='py' && lines.length>1) tpush(term,'<span class="pr">... </span>');
+}
+let termDirty=true;
+function renderTerms(){
+  const tabs=$('#termTabs');
+  tabs.innerHTML=Object.entries(S.terms).map(([k,T])=>{
+    const dot=T.mode==='busy'?'busy':T.mode==='py'?'py':'';
+    return `<button role="tab" aria-selected="${k===S.activeTerm}" class="${k===S.activeTerm?'on':''}" data-t="${k}"><span class="dot ${dot}"></span>${T.label}</button>`;
+  }).join('');
+  const body=$('#termBody'), T=S.terms[S.activeTerm];
+  const atBottom=body.scrollHeight-body.scrollTop-body.clientHeight<40;
+  body.innerHTML=T.lines.join('\n')+(T.mode==='busy'?'':'\n'+promptHtml(S.activeTerm));
+  if(atBottom||termJump){ body.scrollTop=body.scrollHeight; termJump=false; }
+  termDirty=false;
+}
+let termJump=false;
+$('#termTabs').addEventListener('click',e=>{ const b=e.target.closest('button[data-t]'); if(!b) return; S.activeTerm=b.dataset.t; termJump=true; renderTerms(); });
+function showTerm(t){ if(S.activeTerm!==t){ S.activeTerm=t; termJump=true; } termDirty=true; }
+
+/* ================= engine ================= */
+function genEvents(t0,t1){
+  const live=S.kafka.live; if(!live) return;
+  const p=S.producer; let n=(t1-t0)*50+p.carry; const k=Math.floor(n); p.carry=n-k;
+  for(let i=0;i<k;i++){
+    const at=t0+(t1-t0)*(i+1)/k; let et=Math.floor(at); let late=false;
+    if(Math.random()<0.02){ et-=60*rnd(3,30); late=true; }
+    const h=rnd(0,9), host=HOSTS[h];
+    live[HOST_PART[h]].push({t:et,host,action:pick(ACTIONS),bytes:rnd(100,500000),ip:`10.0.${rnd(0,255)}.${rnd(1,254)}`,late,at});
+    p.sent++;
+    if(p.sent%100===0) out('T2','sent '+p.sent);
+  }
+  if(k) lastGen=performance.now();
+}
+let lastGen=0;
+function advance(dt){
+  let left=dt;
+  while(left>1e-9){
+    const step=Math.min(1,left), t0=S.t, t1=S.t+step;
+    if(S.producer.on && S.kafka.state==='running') genEvents(t0,t1);
+    S.t=t1; left-=step;
+    if(S.kafka.state==='starting' && S.t>=S.kafka.readyAt){ S.kafka.state='running'; const pr=proc('kafka'); if(pr) pr.state='running'; }
+    if(S.kafka.state==='stopping' && S.t>=S.kafka.stopAt){ S.kafka.state='stopped'; rmProc('kafka'); }
+    for(const q of S.queries){ if(!q.active) continue; while(q.active && q.next<=S.t){ runBatch(q,q.next); q.next+=q.trigger; } }
+  }
+}
+function ends(){ return S.kafka.live.map(p=>p.length); }
+
+/* ---------- streaming queries ---------- */
+function newQuery(opts){
+  const q=Object.assign({id:uuid(),runId:uuid(),active:true,batchId:0,state:new Map(),shown:new Map(),wm:-Infinity,maxT:-Infinity,dropped:0,dropList:[],hist:[],consoleNonEmpty:0,emitted:0,startedAt:S.t},opts);
+  const ck=q.ckPath&&S.ck[q.ckPath];
+  if(ck){ q.off=ck.offsets.slice(); q.batchId=ck.lastBatch+1; q.wm=ck.wm; q.maxT=ck.maxT; q.state=new Map([...ck.state].map(([k,v])=>[k,{...v}])); q.resumed=true; }
+  else { q.off=ends(); }
+  if(q.ckPath && !ck){ addFs(q.ckPath,'dir'); addFs(q.ckPath+'/metadata','file'); addFs(q.ckPath+'/offsets','dir'); addFs(q.ckPath+'/commits','dir'); addFs(q.ckPath+'/sources','dir'); if(q.kind==='agg') addFs(q.ckPath+'/state','dir'); S.ck[q.ckPath]={lastBatch:-1,offsets:q.off.slice(),state:new Map(),wm:-Infinity,maxT:-Infinity,files:[]}; }
+  if(q.sink==='parquet'){ addFs(q.path,'dir'); addFs(q.path+'/_spark_metadata','dir'); if(!S.files[q.path]) S.files[q.path]=[]; }
+  S.queries.push(q); S.focusQ=q;
+  runBatch(q,S.t); q.next=S.t+q.trigger;
+  return q;
+}
+function stopQuery(q){ if(q&&q.active){ q.active=false; q.stoppedAt=S.t; } }
+function uuid(){ return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&3|8)).toString(16);}); }
+function winKey(start,host){ return start+'|'+(host||''); }
+
+function runBatch(q,at){
+  const e=ends(), rows=[];
+  for(let p=0;p<3;p++){ for(let i=q.off[p];i<e[p];i++) rows.push(S.kafka.live[p][i]); }
+  const start=q.off.slice();
+  if(rows.length===0 && q.batchId>0 && !(q.resumed&&q.batchId===q.firstBatchId)) { return; }
+  const id=q.batchId;
+  let printRows=[], updated=[], emitted=[], droppedNow=0;
+  if(q.kind==='raw'){ printRows=rows; }
+  else if(q.kind==='alerts'){ printRows=rows.filter(r=>r.action==='port_scan'&&r.bytes>400000); }
+  else {
+    const wmNow=q.wm;
+    const upd=new Map();
+    for(const r of rows){
+      if(q.batchId>0 && r.t<wmNow){ q.dropped++; droppedNow++; q.dropList.unshift(r); if(q.dropList.length>4) q.dropList.pop(); continue; }
+      const ws=Math.floor(r.t/q.win)*q.win, k=winKey(ws,q.byHost?r.host:'');
+      let w=q.state.get(k); if(!w){ w={ws,host:q.byHost?r.host:'',events:0,bytes:0}; q.state.set(k,w); }
+      w.events++; w.bytes+=r.bytes; upd.set(k,w);
+      if(r.t>q.maxT) q.maxT=r.t;
+    }
+    updated=[...upd.values()];
+    q.wm=Math.max(q.wm,q.maxT-q.wmDelay);
+    for(const [k,w] of [...q.state]){
+      if(w.ws+q.win<=q.wm){ q.state.delete(k); emitted.push(w); q.shown.set(k,{...w,rel:true}); }
+    }
+    updated.forEach(w=>q.shown.set(winKey(w.ws,w.host),{...w,rel:false,upd:id}));
+    // keep the display map small
+    const keys=[...q.shown.keys()].sort((a,b)=>parseInt(b)-parseInt(a));
+    const keepStarts=[...new Set(keys.map(k=>parseInt(k)))].slice(0,q.byHost?6:9);
+    keys.forEach(k=>{ if(!keepStarts.includes(parseInt(k))) q.shown.delete(k); });
+  }
+  q.off=e;
+  const dur=rnd(140,700)+Math.round(rows.length/8);
+  q.hist.push({id,rows:rows.length,at,dur,start,end:e.slice(),updated:updated.length,dropped:droppedNow,stateRows:q.state.size,emitted:emitted.length,minT:rows.length?Math.min(...rows.map(r=>r.t)):null,maxT:rows.length?Math.max(...rows.map(r=>r.t)):null,avgT:rows.length?rows.reduce((a,r)=>a+r.t,0)/rows.length:null});
+  if(q.hist.length>40) q.hist.shift();
+  q.batchId++;
+  // console sink
+  if(q.sink==='console') printBatch(q,id,printRows,updated);
+  // file sink
+  if(q.sink==='parquet'){
+    if(emitted.length){
+      const name=`part-${pad2(0)}000-${uuid().slice(0,8)}-${uuid().slice(9,13)}-c000.snappy.parquet`;
+      emitted.sort((a,b)=>a.ws-b.ws||a.host.localeCompare(b.host));
+      S.files[q.path].push({name,rows:emitted.map(w=>({...w})),batch:id});
+      addFs(q.path+'/'+name,'file'); q.emitted+=emitted.length;
+    }
+    addFs(q.path+'/_spark_metadata/'+id,'file');
+  }
+  if(q.ckPath){
+    const ck=S.ck[q.ckPath];
+    ck.lastBatch=id; ck.offsets=e.slice(); ck.wm=q.wm; ck.maxT=q.maxT; ck.state=new Map([...q.state].map(([k,v])=>[k,{...v}]));
+    ck.lastOffsetsFile={batch:id,wm:q.wm,at};
+    addFs(q.ckPath+'/offsets/'+id,'file'); addFs(q.ckPath+'/commits/'+id,'file');
+    if(q.kind==='agg') addFs(q.ckPath+'/state/0','dir');
+    if(id===0||!S.fs.has(q.ckPath+'/sources/0')) addFs(q.ckPath+'/sources/0','dir');
+  }
+  // evidence
+  if(q.name==='per_minute' && updated.length){ q.consoleNonEmpty++; if(q.consoleNonEmpty>=3) S.evidence.windows=true; }
+  if(q.name==='narrow' && q.dropped>0){ const w=S.queries.find(x=>x.name==='wide'&&x.active); if(w) S.evidence.late=true; }
+  if(q.resumed && id===q.firstBatchId && rows.length>0){ q.backlog=rows.length; }
+  if(rows.length && !fastMode) flyBatch(q);
+}
+function fmtTable(cols,rows,max=20){
+  const data=rows.slice(0,max).map(r=>cols.map(c=>String(r[c])));
+  const w=cols.map((c,i)=>Math.max(c.length,...data.map(r=>r[i].length)));
+  const line='+'+w.map(n=>'-'.repeat(n)).join('+')+'+';
+  const row=r=>'|'+r.map((v,i)=>v.padEnd(w[i])).join('|')+'|';
+  const outL=[line,row(cols),line,...data.map(row),line];
+  if(rows.length>max) outL.push(`only showing top ${max} rows`);
+  return outL.join('\n');
+}
+function win(ws,len){ return `{${stamp(ws)}, ${stamp(ws+len)}}`; }
+function jsonOf(r){ return JSON.stringify({event_time:stamp(r.t),host:r.host,action:r.action,bytes:r.bytes,src_ip:r.ip}).replace(/,"/g,', "').replace(/":/g,'": '); }
+function printBatch(q,id,rows,updated){
+  const T=q.term;
+  out(T,'-------------------------------------------\nBatch: '+id+'\n-------------------------------------------');
+  if(q.kind==='raw'){ out(T,fmtTable(['host','json'],rows.map(r=>({host:r.host,json:jsonOf(r)})))); }
+  else if(q.kind==='alerts'){ out(T,fmtTable(['event_time','host','action','bytes','src_ip'],rows.map(r=>({event_time:stamp(r.t),host:r.host,action:r.action,bytes:r.bytes,src_ip:r.ip})))); }
+  else {
+    const sorted=updated.slice().sort((a,b)=>a.ws-b.ws||a.host.localeCompare(b.host));
+    if(q.byHost) out(T,fmtTable(['window','host','events','total_bytes'],sorted.map(w=>({window:win(w.ws,q.win),host:w.host,events:w.events,total_bytes:w.bytes}))));
+    else { const c='events_'+q.name; out(T,fmtTable(['window',c],sorted.map(w=>({window:win(w.ws,q.win),[c]:w.events})))); }
+  }
+  out(T,'');
+}
+
+/* ================= rendering of the system view ================= */
+function renderFs(){
+  const paths=[...S.fs.keys()].sort((a,b)=>a.localeCompare(b));
+  // collapse long numbered lists (offsets/commits/_spark_metadata)
+  const groups={}; const shown=[];
+  paths.forEach(p=>{
+    const m=p.match(/^(.*\/(offsets|commits|_spark_metadata))\/(\d+)$/);
+    if(m){ (groups[m[1]]=groups[m[1]]||[]).push(+m[3]); return; }
+    shown.push(p);
+  });
+  const cwdMap={}; Object.entries(S.terms).forEach(([k,T])=>{ (cwdMap[T.cwd]=cwdMap[T.cwd]||[]).push(k); });
+  const partFiles=shown.filter(p=>/\.parquet$/.test(p));
+  const lines=[];
+  shown.forEach(p=>{
+    if(/\.parquet$/.test(p)){ const dir=p.slice(0,p.lastIndexOf('/')); const list=partFiles.filter(x=>x.startsWith(dir+'/')); if(list.length>3 && list.indexOf(p)>1 && p!==list[list.length-1]){ if(list.indexOf(p)===2) lines.push({depth:p.split('/').length-2,html:`<span class="f">… ${list.length-3} more part files</span>`}); return; } }
+    const depth=p.split('/').length-2, name=p.slice(p.lastIndexOf('/')+1)||'/';
+    const n=S.fs.get(p), isDir=n.type==='dir';
+    const disp=p===HOME?'/home/hadoop':name;
+    let html=`<span class="${isDir?'d':'f'} ${S.fresh.has(p)?'new':''}">${esc(disp)}${isDir?'/':''}${p===HOME?' (~)':''}</span>`;
+    if(groups[p]){ const g=groups[p].sort((a,b)=>a-b); html+=` <span class="f">${g.length} file${g.length>1?'s':''}: ${g[0]}${g.length>1?' … '+g[g.length-1]:''}</span>`; }
+    (cwdMap[p]||[]).forEach(t=>html+=`<span class="cwd ${t}">${t} is here</span>`);
+    lines.push({depth,html});
+  });
+  // hide uninteresting parents depth adjust: indent
+  $('#fs').innerHTML=lines.map(l=>`<div class="n" style="padding-left:${Math.max(0,l.depth)*12}px">${l.html}</div>`).join('');
+}
+function renderProcs(){
+  const el=$('#procs');
+  if(!S.procs.length){ el.innerHTML='<div class="none">Nothing from this lab is running yet.</div>'; return; }
+  el.innerHTML=S.procs.map(p=>`<div class="proc ${p.jvm?'jvm':'py'} ${p.state}"><b>${esc(p.name)}</b><span class="st">${p.state}</span><small>PID ${p.pid}, started in ${p.term}${p.note?', '+esc(p.note):''}</small></div>`).join('');
+}
+function bmHtml(pos,color,label){ return `<div class="bm" style="left:${pos}%;background:${color}">${label?`<span style="color:${color}">${label}</span>`:''}</div>`; }
+function renderKafka(){
+  const K=S.kafka, el=$('#kafka');
+  $('#kState').textContent=K.state==='running'?'running on localhost:9092 (KRaft: broker and controller in one process)':K.state;
+  let h=`<div class="broker ${K.state==='running'?'':'off'}">`;
+  h+=`<div class="topic-h">Topics on this broker<small>stored in /tmp/kraft-combined-logs</small></div>`;
+  h+=`<div class="mini-topics"><span>__consumer_offsets (internal, 50 partitions)</span><span>security-events (3 partitions, ${(K.sec[0]+K.sec[1]+K.sec[2]).toLocaleString()} events from lab 2.1)</span></div>`;
+  if(K.live){
+    const e=ends(), maxE=Math.max(1,...e);
+    h+=`<div class="topic"><div class="topic-h">live-events<small>${S.producer.on?'producer.py writing about 50 events/s':'no producer running'}</small></div>`;
+    for(let p=0;p<3;p++){
+      const lane=K.live[p], tail=lane.slice(-40).reverse().map(r=>`<i class="${r.late?'late':''}"></i>`).join('');
+      let marks='';
+      const readers=S.queries.filter(q=>q.active);
+      readers.forEach((q,i)=>{ marks+=bmHtml(e[p]?Math.min(100,q.off[p]/e[p]*100):0,['var(--spark)','#0E7490','#5B3FA8'][i%3],p===0?q.label:''); });
+      if(S.consumerPeek) marks+=bmHtml(e[p]?Math.min(100,S.consumerPeek[p]/e[p]*100):0,'var(--ink)',p===0?'console consumer':'');
+      h+=`<div class="lane"><span class="pl">P${p}</span><div class="track" id="lane${p}" style="width:${Math.max(6,e[p]/maxE*100)}%"><div class="tail">${tail}</div>${marks}</div><span class="cnt">${e[p].toLocaleString()} events</span></div>`;
+    }
+    h+=`<div class="legend"><span><i style="background:#7D9BE6"></i>event, newest at the right</span><span><i style="background:var(--late)"></i>late: event_time backdated 3 to 30 min</span><span><i style="background:var(--spark)"></i>bookmark: where a Spark query has read up to</span></div></div>`;
+  } else h+=`<div class="none mt-2">live-events does not exist yet.</div>`;
+  h+='</div>';
+  el.innerHTML=h;
+}
+function pipeline(q){
+  const src=`<span class="pn src">Kafka source<small>live-events, ${q.resumed?'from checkpoint':'startingOffsets=latest'}</small></span>`;
+  const A='<span class="ar">›</span>';
+  let mid='';
+  if(q.kind==='raw') mid=`<span class="pn">CAST key, value<small>binary to string</small></span>`;
+  else if(q.kind==='alerts') mid=`<span class="pn">from_json + schema<small>event_time to timestamp</small></span>${A}<span class="pn">filter<small>port_scan, bytes &gt; 400000</small></span>`;
+  else mid=`<span class="pn">from_json + schema<small>event_time to timestamp</small></span>${A}<span class="pn st">withWatermark<small>${q.wmLabel}</small></span>${A}<span class="pn st">groupBy window<small>${q.win/60} min${q.byHost?' and host':''}</small></span>${A}<span class="pn st">count, sum<small>state kept between batches</small></span>`;
+  const sink=q.sink==='console'?`<span class="pn sink">console<small>${q.mode}, every ${q.trigger} s</small></span>`:`<span class="pn sink">parquet ${q.path}<small>append, every ${q.trigger} s, checkpoint ${q.ckPath}</small></span>`;
+  return `<div class="pipe">${src}${A}${mid}${A}${sink}</div>`;
+}
+function renderSpark(){
+  const el=$('#spark'), sp=S.spark;
+  $('#sState').textContent=sp.T3?`pyspark running in T3${sp.T4?' and T4':''}; Spark UI on :4040`:'not started';
+  if(!sp.T3 && !sp.T4 && !S.queries.length){ el.innerHTML='<div class="none">No Spark session yet. It starts in step 4.</div>'; return; }
+  let h='';
+  if(sp.defs.length) h+=`<div class="spark-top"><span class="muted" style="font-size:.74rem">Defined in T3 (lazy, nothing runs yet):</span>${sp.defs.map(d=>`<span class="chipv ${sp.fresh.has(d)?'new':''}">${d}</span>`).join('')}</div>`;
+  const qs=S.queries.slice(-5);
+  if(qs.length){
+    h+='<div class="queries">'+qs.map(q=>{
+      const left=q.active?Math.max(0,q.next-S.t):0;
+      return `<div class="qrow ${q.active?'on':'off'}"><span class="qn">${esc(q.label)}</span><span class="qd">${q.sink==='console'?'console, '+q.mode:'parquet, append'}; batch ${Math.max(0,q.batchId-1)}${q.kind==='agg'?'; state '+q.state.size+' rows':''}</span><span class="qt">${q.active?'next batch in '+Math.ceil(left)+' s':'stopped'}</span></div>`;
+    }).join('')+'</div>';
+  }
+  const q=S.focusQ;
+  if(q){
+    h+=`<div class="view-title"><span>Query ${esc(q.label)}</span><small>${q.active?'running':'stopped'}</small></div>`+pipeline(q);
+    const hist=q.hist.slice(-16), mx=Math.max(1,...hist.map(b=>b.rows));
+    h+=`<div class="view-title">Micro-batches<small>bar height = rows read from Kafka in that batch</small></div><div class="batches">${hist.map(b=>`<div class="b ${b.rows?'':'empty'}" style="height:${Math.max(3,b.rows/mx*100)}%" title="batch ${b.id}: ${b.rows} rows"><span>${b.id}</span></div>`).join('')}</div><div style="height:12px"></div>`;
+    h+=resultView(q);
+  }
+  el.innerHTML=h;
+}
+function resultView(q){
+  if(q.kind==='raw'||q.kind==='alerts'){
+    const last=[];
+    const e=q.hist[q.hist.length-1];
+    if(e){ for(let p=0;p<3;p++) for(let i=e.start[p];i<e.end[p]&&last.length<400;i++) last.push(S.kafka.live[p][i]); }
+    const rows=(q.kind==='alerts'?last.filter(r=>r.action==='port_scan'&&r.bytes>400000):last).slice(0,6);
+    return `<div class="view-title">Last batch output<small>${q.kind==='alerts'?'only rows that match the filter':'key and value cast to string'}</small></div><div class="rows">${rows.length?rows.map(r=>q.kind==='raw'?`${r.host}  ${esc(jsonOf(r)).slice(0,90)}…`:`${stamp(r.t)}  ${r.host}  port_scan  ${r.bytes}`).join('\n'):'(empty batch)'}</div>`;
+  }
+  if(q.name==='narrow'||q.name==='wide'){
+    const n=S.queries.filter(x=>x.name==='narrow').pop(), w=S.queries.filter(x=>x.name==='wide').pop();
+    const top=Math.floor(Math.max(n?n.maxT:0,w?w.maxT:0)/300)*300;
+    const starts=[...Array(8).keys()].map(i=>top-(7-i)*300);
+    const val=(qq,s)=>{ if(!qq) return 0; const v=qq.shown.get(winKey(s,'')); return v?v.events:0; };
+    const mx=Math.max(1,...starts.map(s=>Math.max(val(n,s),val(w,s))));
+    const scale=v=>v?Math.max(3,Math.sqrt(v/mx)*100):0;
+    return `<div class="view-title">Events per 5-minute window<small>orange = narrow (30 s), blue = wide (60 min); square-root scale so small bars show</small></div>
+      <div class="cmp">${starts.map(s=>`<div class="c"><i class="n" style="height:${scale(val(n,s))}%" title="narrow ${val(n,s)}"></i><i class="w" style="height:${scale(val(w,s))}%" title="wide ${val(w,s)}"></i></div>`).join('')}</div>
+      <div class="cmp-l">${starts.map(s=>`<span>${hm(s)}<br>${val(n,s)} / ${val(w,s)}</span>`).join('')}</div>
+      <div class="mt-2" style="font-size:.76rem">Late events dropped by <b>narrow</b>: <b class="tnum" style="color:var(--late)">${n?n.dropped:0}</b>. Dropped by <b>wide</b>: <b class="tnum">${w?w.dropped:0}</b>. Older windows on the left only fill in for the wide query.</div>`;
+  }
+  if(q.sink==='parquet') return sinkView();
+  // per-minute grid
+  const starts=[...new Set([...q.shown.keys()].map(k=>parseInt(k)))].sort((a,b)=>a-b).slice(-6);
+  let h=`<div class="view-title">Window state: events per host per minute<small>dark = updated in the last batch, grey = released</small></div><div class="grid-wrap"><table class="wg"><tr><th></th>${starts.map(s=>`<th class="${q.wm>s&&q.wm<=s+q.win?'wmcol':''}">${hm(s)}</th>`).join('')}</tr>`;
+  HOSTS.forEach(host=>{
+    h+=`<tr><td class="h">${host}</td>`+starts.map(s=>{ const v=q.shown.get(winKey(s,host)); if(!v) return '<td></td>'; const cls=v.rel?'rel':(v.upd===q.batchId-1?'upd':'open'); return `<td class="${cls}">${v.events}</td>`; }).join('')+'</tr>';
+  });
+  h+='</table></div>';
+  h+=`<div class="wmnote mt-1">Watermark: ${q.maxT>-Infinity?hms(q.wm):'not set yet'} (newest event_time ${q.maxT>-Infinity?hms(q.maxT):'none'} minus ${q.wmLabel}). Events older than this are dropped.</div>`;
+  h+=`<div style="font-size:.76rem;margin-top:.2rem">Late events dropped so far: <b class="tnum" style="color:var(--late)">${q.dropped}</b>; rows held in state: <b class="tnum">${q.state.size}</b></div>`;
+  if(q.dropList.length) h+=`<div class="droplist">${q.dropList.map(r=>`dropped: ${r.host} event_time ${hms(r.t)}, ${Math.round((q.maxT-r.t)/60)} min behind`).join('\n').split('\n').join('<br>')}</div>`;
+  return h;
+}
+function sinkView(){
+  const outF=S.files['/tmp/lab2b/out']||[], out2=S.files['/tmp/lab2b/out2']||[];
+  const written=f=>{ const m=new Map(); f.forEach(x=>x.rows.forEach(r=>m.set(r.ws,(m.get(r.ws)||0)+1))); return m; };
+  const w1=written(outF), w2=written(out2);
+  const q1=S.queries.filter(q=>q.path==='/tmp/lab2b/out').pop(), q2=S.queries.filter(q=>q.path==='/tmp/lab2b/out2').pop();
+  const pend=q=>{ const s=new Set(); if(q&&q.active) [...q.state.values()].forEach(w=>s.add(w.ws)); return s; };
+  const p1=pend(q1), p2=pend(q2);
+  const all=[...new Set([...w1.keys(),...w2.keys(),...p1,...p2])].sort((a,b)=>a-b);
+  const firstQ=S.queries.find(q=>q.path==='/tmp/lab2b/out'); const qStart=firstQ?Math.floor(firstQ.startedAt/60)*60:0;
+  const allIn=all.filter(s=>s>=qStart);
+  const first=allIn.length?allIn[0]:0, last=allIn.length?allIn[allIn.length-1]:0;
+  const mins=[]; for(let s=first;s<=last&&mins.length<14;s+=60) mins.push(s);
+  if(allIn.length && last-first>=14*60){ mins.length=0; for(let s=last-13*60;s<=last;s+=60) mins.push(s); }
+  const inGap=s=>S.gap&&s+60>S.gap.from&&s<(S.gap.to||S.t);
+  const cell=(s,w,p)=>{ const c=w.has(s)?'w':p.has(s)?'p':'x'; const t=w.has(s)?w.get(s)+' rows':p.has(s)?'waiting':'none'; return `<span class="${c} ${inGap(s)?'gap':''}" title="${hm(s)}: ${t}">${hm(s)}<br>${w.has(s)?w.get(s):p.has(s)?'…':'–'}</span>`; };
+  if(!allIn.length) mins.length=0;
+  let h=`<div class="view-title">Parquet output, one cell per minute window<small>green = written (rows), orange = still open in state, outlined = produced while the query was stopped</small></div>`;
+  h+=`<div class="sinkrow"><b>out</b><div class="mins">${mins.map(s=>cell(s,w1,p1)).join('')||'<span class="x" style="min-width:auto;padding:2px 6px">no windows yet</span>'}</div></div>`;
+  if(q2) h+=`<div class="sinkrow"><b>out2</b><div class="mins">${mins.map(s=>cell(s,w2,p2)).join('')}</div></div>`;
+  const rows=outF.reduce((a,f)=>a+f.rows.length,0), keys=new Set(); outF.forEach(f=>f.rows.forEach(r=>keys.add(r.ws+'|'+r.host)));
+  h+=`<div class="ck">out: <b>${outF.length}</b> part files, <b>${rows}</b> rows, <b>${rows-keys.size}</b> duplicates. ${q1?`Watermark ${q1.maxT>-Infinity?hms(q1.wm):'not set'}: a window is written once the watermark passes its end.`:''}</div>`;
+  const ck=S.ck['/tmp/lab2b/ckpt'];
+  if(ck) h+=`<div class="ck">Checkpoint <code>/tmp/lab2b/ckpt</code>: last committed batch <b>${ck.lastBatch}</b>, Kafka offsets P0 <b>${ck.offsets[0]}</b>, P1 <b>${ck.offsets[1]}</b>, P2 <b>${ck.offsets[2]}</b>, ${ck.state.size} window rows of state.</div>`;
+  return h;
+}
+function renderAll(){
+  $('#clk').textContent=hms(S.t);
+  $('#spd').textContent=S.speed>6?`fast-forwarding (${S.speed}× real time)`:'running 6× faster than real time';
+  renderFs(); renderProcs(); renderKafka(); renderSpark(); renderChecklist();
+  if(termDirty) renderTerms();
+}
+function renderChecklist(){ document.querySelectorAll('#checklist li').forEach(li=>li.classList.toggle('got',!!S.evidence[li.dataset.k])); }
+
+/* flying dots */
+function fly(fromEl,toEl,color){
+  if(!fromEl||!toEl||reduceMotion||!hasGsap) return;
+  const a=fromEl.getBoundingClientRect(), b=toEl.getBoundingClientRect();
+  if(a.bottom<0||a.top>innerHeight||b.bottom<0||b.top>innerHeight) return;
+  const d=document.createElement('div'); d.className='dot'; d.style.background=color; $('#flight').appendChild(d);
+  gsap.fromTo(d,{x:a.left+a.width/2,y:a.top+a.height/2},{x:b.left+b.width-8,y:b.top+b.height/2,duration:.6,ease:'power1.inOut',onComplete:()=>d.remove()});
+}
+function flyBatch(q){ const z=$('#zSpark .batches')||$('#zSpark'); for(let p=0;p<3;p++) setTimeout(()=>fly($('#lane'+p),z,'var(--spark)'),p*80); }
+setInterval(()=>{ if(S.producer.on && S.kafka.live && !fastMode){ const p=rnd(0,2); fly($('#procs .proc.py'),$('#lane'+p),'#7D9BE6'); } },700);
+
+/* main loop */
+let lastReal=performance.now(), fastMode=false;
+function loop(){
+  const now=performance.now(), dtReal=Math.min(.5,(now-lastReal)/1000); lastReal=now;
+  if(!fastMode) advance(dtReal*S.speed);
+  renderAll();
+}
+setInterval(loop,200);
+
+/* waits */
+function waitSim(sec,{fast,speed=15}={}){
+  if(fast){ advance(sec); return Promise.resolve(); }
+  const target=S.t+sec; S.speed=speed;
+  return new Promise(res=>{ const iv=setInterval(()=>{ if(S.t>=target){ clearInterval(iv); S.speed=6; res(); } },100); });
+}
+
+/* ================= the lab, as commands ================= */
+const C=(o)=>o;
+const PRODUCER_PY=`import json, random, time, sys
+from datetime import datetime, timedelta
+from kafka import KafkaProducer
+
+producer = KafkaProducer(
+    bootstrap_servers="localhost:9092",
+    key_serializer=lambda k: k.encode(),
+    value_serializer=lambda v: json.dumps(v).encode(),
+    acks="all")
+
+HOSTS = [f"host{i:02d}" for i in range(10)]
+ACTIONS = ["login_ok", "login_failed", "file_read", "port_scan", "logout"]
+
+sent = 0
+while True:
+    host = random.choice(HOSTS)
+    now = datetime.now()
+    # 2% of events are deliberately late by 3-30 minutes
+    if random.random() < 0.02:
+        now -= timedelta(minutes=random.randint(3, 30))
+    event = {
+        "event_time": now.strftime("%Y-%m-%d %H:%M:%S"),
+        "host": host,
+        "action": random.choice(ACTIONS),
+        "bytes": random.randint(100, 500000),
+        "src_ip": f"10.0.{random.randint(0,255)}.{random.randint(1,254)}",
+    }
+    producer.send("live-events", key=host, value=event)
+    sent += 1
+    if sent % 100 == 0:
+        producer.flush()
+        print(f"sent {sent}", flush=True)
+    time.sleep(0.02)`;
+
+function def(name){ if(!S.spark.defs.includes(name)) S.spark.defs.push(name); S.spark.fresh.add(name); setTimeout(()=>S.spark.fresh.delete(name),5000); }
+function sparkStartOutput(term,withPkg){
+  const o=[];
+  if(withPkg){
+    o.push(':: loading settings :: url = jar:file:/opt/spark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml',
+      'Ivy Default Cache set to: /home/hadoop/.ivy2/cache','The jars for the packages stored in: /home/hadoop/.ivy2/jars',
+      'org.apache.spark#spark-sql-kafka-0-10_2.12 added as a dependency',
+      ':: resolving dependencies :: org.apache.spark#spark-submit-parent-'+uuid().slice(0,8)+';1.0',
+      '\tfound org.apache.spark#spark-sql-kafka-0-10_2.12;3.5.0 in central',
+      '\tfound org.apache.spark#spark-token-provider-kafka-0-10_2.12;3.5.0 in central',
+      '\tfound org.apache.kafka#kafka-clients;3.4.1 in central',
+      '\tfound org.apache.commons#commons-pool2;2.11.1 in central',
+      ':: retrieving :: org.apache.spark#spark-submit-parent','\t11 artifacts copied, 0 already retrieved');
+  }
+  o.push('Setting default log level to "WARN".','WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable',
+    'Welcome to','      ____              __','     / __/__  ___ _____/ /__',"    _\\ \\/ _ \\/ _ `/ __/  '_/",'   /__ / .__/\\_,_/_/ /_/\\_\\   version 3.5.1','      /_/','',
+    'Using Python version 3.12.3 (main, Apr 10 2024 05:33:47)',`Spark context Web UI available at http://ubuntuOS:${term==='T3'?4040:4041}`,
+    `Spark context available as 'sc' (master = local[*], app id = local-${Date.now()}).`,"SparkSession available as 'spark'.");
+  out(term,o.join('\n'));
+}
+const W=(sec,label)=>C({term:'T3',label:'Wait',code:label,wait:sec,run:async(f)=>{ await waitSim(sec,{fast:f}); },
+  what:`Time passes while the query keeps working. Here ${sec>=60?Math.round(sec/60)+' simulated minute'+(sec>=120?'s':''):sec+' simulated seconds'} go by quickly so you can watch the batches arrive.`,see:'Watch the clock, the batch bars and the terminal.',focus:['zSpark']});
+
+const STEPS=[
+ {title:'Start Kafka and create the stream topic',short:'Kafka up, topic created',
+  intro:'Bring the broker up and create <code>live-events</code> with three partitions, so you can see parallelism later.',
+  cmds:[
+   C({term:'T1',label:'Go to the Kafka folder',code:'cd /opt/kafka',run:()=>{ S.terms.T1.cwd='/opt/kafka'; },
+     what:'<code>cd</code> changes the current directory of this terminal only. Every Kafka script is run as <code>bin/…</code> relative to this folder.',see:'The "T1 is here" tag moves to /opt/kafka in the file tree.',focus:['zMachine']}),
+   C({term:'T1',label:'Start the broker in the background',code:'bin/kafka-server-start.sh -daemon config/kraft/server.properties',run:()=>{ S.kafka.state='starting'; S.kafka.readyAt=S.t+6; addProc('kafka','Kafka broker (KRaft)',true,'T1','listens on :9092','starting'); addFs('/opt/kafka/logs','dir'); addFs('/opt/kafka/logs/server.log','file'); },
+     what:'Starts one Java process that is both broker and controller (KRaft), using the settings in <code>config/kraft/server.properties</code>. <code>-daemon</code> runs it in the background, so the prompt returns at once and nothing is printed; messages go to <code>logs/server.log</code> instead.',see:'A Java process appears as "starting", and logs/server.log is created.',focus:['zMachine','zKafka']}),
+   C({term:'T1',label:'Give it time to start',code:'sleep 10',run:async(f)=>{ S.terms.T1.mode='busy'; await waitSim(10,{fast:f,speed:6}); S.terms.T1.mode='shell'; },
+     what:'Waits 10 seconds. The broker needs a few seconds to load its metadata log and open port 9092; a command run too early fails with a connection error.',see:'The broker turns "running" and its box on the right becomes solid.',focus:['zKafka']}),
+   C({term:'T1',label:'Create the topic',code:'bin/kafka-topics.sh --bootstrap-server localhost:9092 \\\n  --create --topic live-events --partitions 3 --replication-factor 1',
+     run:()=>{ S.kafka.live=[[],[],[]]; [0,1,2].forEach(p=>addFs('/tmp/kraft-combined-logs/live-events-'+p,'dir')); out('T1','Created topic live-events.'); },
+     what:'Asks the broker on <code>localhost:9092</code> to create <code>live-events</code> with 3 partitions. Replication factor 1 because there is only one broker to hold a copy.',see:'Three empty partition lanes appear under Kafka, and three folders appear in /tmp/kraft-combined-logs: that is where each partition is stored on disk.',focus:['zKafka','zMachine']}),
+   C({term:'T1',label:'List the topics',code:'bin/kafka-topics.sh --bootstrap-server localhost:9092 --list',run:()=>out('T1','__consumer_offsets\nlive-events\nsecurity-events'),
+     what:'Lists every topic. <code>security-events</code> is left over from lab 2.1. <code>__consumer_offsets</code> is Kafka\'s internal topic where consumer groups save their bookmarks; it was created when you used consumer groups in lab 2.1.',see:'The three names match the three topics drawn on the broker.',focus:['zKafka']})
+  ],
+  take:['Kafka here is one Java process (broker and controller together) started in the background, so its messages go to a log file, not your terminal.','A topic is just a name plus partitions; each partition is a folder on the broker\'s disk.','Always confirm with <code>--list</code> before moving on.']},
+ {title:'Write a producer of synthetic security events',short:'producer.py running',
+  intro:'Install the Kafka client for Python, write <code>producer.py</code>, and leave it running in its own terminal.',
+  cmds:[
+   C({term:'T2',label:'Install pip',code:'sudo apt install -y python3-pip',run:()=>out('T2','Reading package lists... Done\nBuilding dependency tree... Done\nReading state information... Done\npython3-pip is already the newest version (24.0+dfsg-1ubuntu1).\n0 upgraded, 0 newly installed, 0 to remove and 12 not upgraded.'),
+     what:'Installs pip, Python\'s package installer, from Ubuntu\'s repositories. <code>-y</code> answers yes to the prompt. On your VM it may already be installed, as shown here.',see:'Nothing changes in this lab\'s folders: system packages live under /usr.',focus:['zMachine']}),
+   C({term:'T2',label:'Install kafka-python',code:'pip3 install kafka-python || pip3 install --break-system-packages kafka-python',
+     run:()=>{ out('T2','error: externally-managed-environment\n\n× This environment is externally managed\n╰─> To install Python packages system-wide, try apt install\n    python3-xyz, where xyz is the package you are trying to\n    install.\n\nnote: If you believe this is a mistake, please contact your Python installation or OS distribution provider. You can override this, at the risk of breaking your Python installation or OS, by passing --break-system-packages.\nhint: See PEP 668 for the detailed specification.','err'); out('T2','Defaulting to user installation because normal site-packages is not writeable\nCollecting kafka-python\n  Downloading kafka_python-2.2.15-py2.py3-none-any.whl (309 kB)\nInstalling collected packages: kafka-python\nSuccessfully installed kafka-python-2.2.15'); out('T2','',''); addFs(HOME+'/.local/lib/python3.12/site-packages/kafka','dir'); },
+     what:'<code>a || b</code> means "run b only if a fails". Ubuntu 24.04 refuses the first install (PEP 668: it protects the system Python), so the second command runs with <code>--break-system-packages</code> and installs into your user folder.',see:'The red error is expected. The library appears under ~/.local.',focus:['zMachine']}),
+   C({term:'T2',label:'Make the lab folder',code:'mkdir -p ~/lab2b',run:()=>addFs(HOME+'/lab2b','dir'),
+     what:'Creates the folder. <code>-p</code> means "no error if it already exists, and create parent folders if needed".',see:'~/lab2b appears in the tree.',focus:['zMachine']}),
+   C({term:'T2',label:'Write producer.py',code:"cat > ~/lab2b/producer.py <<'EOF'\n"+PRODUCER_PY+"\nEOF",run:()=>{ addFs(HOME+'/lab2b/producer.py','file'); S.evidence.producer=true; },
+     what:'<code>cat &gt; file &lt;&lt;\'EOF\'</code> writes everything up to the line <code>EOF</code> into the file (a "here document"). The quotes around EOF stop the shell from changing <code>$</code> and other characters inside. Key lines: the host is the message <strong>key</strong> (so one host always lands in one partition), values are JSON, <code>acks="all"</code> waits for the broker to confirm, and 2% of events get an <code>event_time</code> 3 to 30 minutes in the past.',see:'producer.py appears in ~/lab2b. The terminal shows "&gt;" for each line of the here document.',focus:['zMachine']}),
+   C({term:'T2',label:'Run the producer (leave it running)',code:'python3 ~/lab2b/producer.py',run:()=>{ addProc('producer','python3 producer.py',false,'T2','about 50 events per second'); S.producer.on=true; S.terms.T2.mode='busy'; },
+     what:'Starts the producer in the foreground of T2. It sends one event every 0.02 s (about 50 a second) and prints a counter every 100. T2 is now busy until you press Ctrl+C in step 12; the next commands use other terminals.',see:'Events stream into the three partition lanes; orange ones are the late events. "sent 100, sent 200 …" scrolls in T2.',focus:['zKafka','zMachine']})
+  ],
+  take:['The producer chooses the <strong>key</strong> (host) and the <strong>event_time</strong>; Kafka only stores what it is given.','Late data is built in on purpose, so the watermark has something to drop later.','A long-running program occupies its terminal, which is why the lab uses several.']},
+ {title:'Confirm the events are arriving',short:'check the source',
+  intro:'Before writing any Spark, prove the data is in Kafka. Make this a reflex.',
+  cmds:[
+   C({term:'T3',label:'Go to the Kafka folder in a new terminal',code:'cd /opt/kafka',run:()=>{ S.terms.T3.cwd='/opt/kafka'; },what:'T3 is a fresh terminal, so it starts in your home folder. Move it to /opt/kafka to use the Kafka scripts.',see:'"T3 is here" appears next to /opt/kafka.',focus:['zMachine']}),
+   C({term:'T3',label:'Read five events',code:"bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \\\n  --topic live-events --property print.key=true | head -5",
+     run:async(f)=>{
+       addProc('cc','ConsoleConsumer',true,'T3','temporary reader'); const e=ends(); S.consumerPeek=e.map(x=>x);
+       await waitSim(3,{fast:f,speed:6});
+       const recent=[]; for(let p=0;p<3;p++) recent.push(...S.kafka.live[p].slice(e[p]));
+       const pickRows=recent.slice(0,4); const late=recent.find(r=>r.late)||(()=>{ const r={...recent[5]||recent[0]}; r.t-=60*rnd(4,25); r.late=true; return r; })();
+       pickRows.splice(2,0,late);
+       pickRows.slice(0,5).forEach(r=>tpush('T3',`${esc(r.host)}\t${r.late?'<span class="late">'+esc(jsonOf(r))+'</span>':esc(jsonOf(r))}`));
+       out('T3','Processed a total of 5 messages','dim');
+       rmProc('cc'); S.consumerPeek=null; },
+     what:'Starts a temporary consumer that prints each new message with its key. It begins at the end of the topic, so it waits for new events. <code>| head -5</code> keeps the first five lines and then closes the pipe, which ends the consumer.',see:'Five JSON lines, each starting with its host key. The orange one has an event_time minutes in the past: a late event. A "console consumer" bookmark appears on the lanes and leaves when it exits.',focus:['zKafka']})
+  ],
+  take:['If the console consumer shows events, Kafka and the producer are fine, and any later empty output is a Spark problem.','Each message has a <strong>key</strong> (the host) and a <strong>value</strong> (the JSON). Late events look normal; only their event_time gives them away.']},
+ {title:'Read the stream in Spark and print raw rows',short:'first streaming query',
+  intro:'Start PySpark with the Kafka connector, then run a query that just prints what arrives.',
+  cmds:[
+   C({term:'T3',label:'Start PySpark with the Kafka connector',code:'pyspark --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0',
+     run:()=>{ sparkStartOutput('T3',true); S.terms.T3.mode='py'; S.spark.T3=true; addProc('spark3','SparkSubmit (pyspark driver)',true,'T3','Spark UI :4040'); addFs(HOME+'/.ivy2','dir'); addFs(HOME+'/.ivy2/jars','dir'); addFs(HOME+'/.ivy2/jars/org.apache.spark_spark-sql-kafka-0-10_2.12-3.5.0.jar','file'); addFs(HOME+'/.ivy2/jars/org.apache.kafka_kafka-clients-3.4.1.jar','file'); },
+     what:'Starts an interactive Python shell connected to a Spark driver. <code>--packages</code> downloads the Kafka connector and its dependencies (like <code>kafka-clients</code>) from Maven Central into <code>~/.ivy2</code>. The connector\'s version should match Spark\'s: your VM has Spark <strong>3.5.1</strong> (from spark-3.5.1-bin-hadoop3.tgz), so <code>…:3.5.1</code> is the exact match; 3.5.0 usually works within the same minor version.',see:'A SparkSubmit Java process appears, the jars land in ~/.ivy2/jars, and T3\'s prompt becomes &gt;&gt;&gt;.',focus:['zMachine','zSpark']}),
+   C({term:'T3',label:'Define the Kafka source',code:'raw = (spark.readStream.format("kafka")\n    .option("kafka.bootstrap.servers", "localhost:9092")\n    .option("subscribe", "live-events")\n    .option("startingOffsets", "latest")\n    .load())',
+     run:()=>def('raw'),what:'Describes a streaming DataFrame that reads <code>live-events</code>. Nothing is read yet: Spark is lazy until a query is started. <code>latest</code> means "begin at the current end of each partition", ignoring the backlog.',see:'"raw" appears as a definition under Spark. No bookmark on Kafka yet.',focus:['zSpark']}),
+   C({term:'T3',label:'Start a query that prints raw rows',code:'q = (raw.selectExpr("CAST(key AS STRING) AS host", "CAST(value AS STRING) AS json")\n     .writeStream.format("console").option("truncate", False)\n     .trigger(processingTime="5 seconds").start())',
+     run:()=>{ out('T3','WARN ResolveWriteToStream: Temporary checkpoint location created which is deleted normally when the query didn\'t fail: /tmp/temporary-'+uuid()+'. If it\'s required to delete it under any circumstances, please set spark.sql.streaming.forceDeleteTempCheckpointLocation to true. Important to know deleting temp checkpoint folder is best effort.','warn'); S.vars.q=newQuery({kind:'raw',label:'q: raw rows',term:'T3',sink:'console',mode:'append',trigger:5}); },
+     what:'Kafka gives <code>key</code> and <code>value</code> as bytes, so they are cast to strings. <code>start()</code> launches the query: every 5 seconds Spark reads the new records from each partition and prints them. The WARN line is normal: console queries get a throw-away checkpoint.',see:'Batch 0 is empty (it started at "latest"); from batch 1 rows appear. A Spark bookmark follows the end of each Kafka lane, and a bar appears per micro-batch.',focus:['zSpark','zKafka']}),
+   W(20,'# after watching a few batches:'),
+   C({term:'T3',label:'Stop the query',code:'q.stop()',run:()=>stopQuery(S.vars.q),what:'Stops this query. The Spark session stays; only this stream ends.',see:'The query shows "stopped" and its bookmark leaves the lanes.',focus:['zSpark']})
+  ],
+  take:['A streaming query is a normal DataFrame plus <code>writeStream … start()</code>; it runs as a series of micro-batches.','Kafka data is binary until you cast it.','An empty batch 0 with <code>latest</code> is normal, not a bug.']},
+ {title:'Parse the JSON with an explicit schema',short:'schema and timestamp',
+  intro:'Declare the schema, parse the value, and turn <code>event_time</code> into a real timestamp.',
+  cmds:[
+   C({term:'T3',label:'Imports',code:'from pyspark.sql.functions import col, from_json\nfrom pyspark.sql.types import StructType, StringType, LongType',run:()=>{},what:'Loads the functions and types used below. No output means success.',see:'Nothing changes; imports only make names available.',focus:['zSpark']}),
+   C({term:'T3',label:'Declare the schema',code:'schema = (StructType()\n    .add("event_time", StringType())\n    .add("host", StringType())\n    .add("action", StringType())\n    .add("bytes", LongType())\n    .add("src_ip", StringType()))',run:()=>def('schema'),
+     what:'Spells out every field and its type. On a stream, schema inference is not allowed: Spark would have to read data before the stream starts, and the schema could change between restarts.',see:'"schema" is defined.',focus:['zSpark']}),
+   C({term:'T3',label:'Parse and cast',code:'events = (raw\n    .select(from_json(col("value").cast("string"), schema).alias("e"))\n    .select("e.*")\n    .withColumn("event_time", col("event_time").cast("timestamp")))',run:()=>{ def('events'); S.evidence.script=true; },
+     what:'<code>from_json</code> turns the JSON text into a struct, <code>e.*</code> expands it into columns, and the cast makes <code>event_time</code> a timestamp. Windows only work on timestamps.',see:'"events" is defined, still lazy.',focus:['zSpark']}),
+   C({term:'T3',label:'Check the schema',code:'events.printSchema()',run:()=>out('T3','root\n |-- event_time: timestamp (nullable = true)\n |-- host: string (nullable = true)\n |-- action: string (nullable = true)\n |-- bytes: long (nullable = true)\n |-- src_ip: string (nullable = true)\n'),
+     what:'Prints the columns and types. This works without running the stream because the schema is known in advance.',see:'event_time is <strong>timestamp</strong> and bytes is <strong>long</strong>. If event_time still said string, every window later would be empty.',focus:['zSpark']})
+  ],
+  take:['Explicit schema, always, for streams.','<code>event_time</code> must be a timestamp before you can window on it; check with <code>printSchema()</code>.']},
+ {title:'Filter and alert on a raw stream',short:'stateless alerts',
+  intro:'The simplest useful streaming job: no state, just filter and print.',
+  cmds:[
+   C({term:'T3',label:'Define the alert filter',code:"alerts = events.filter(\"action = 'port_scan' AND bytes > 400000\")",run:()=>def('alerts'),what:'Keeps only high-volume port scans. A filter looks at one row at a time and never needs to remember anything.',see:'"alerts" is defined.',focus:['zSpark']}),
+   C({term:'T3',label:'Start the alert query',code:'q = (alerts.writeStream.format("console")\n     .outputMode("append").option("truncate", False)\n     .trigger(processingTime="10 seconds").start())',
+     run:()=>{ out('T3','WARN ResolveWriteToStream: Temporary checkpoint location created which is deleted normally when the query didn\'t fail: /tmp/temporary-'+uuid()+'.','warn'); S.vars.q=newQuery({kind:'alerts',label:'q: alerts',term:'T3',sink:'console',mode:'append',trigger:10}); },
+     what:'<code>append</code> mode prints each new matching row once. No watermark is needed: a row that passed the filter can never change later.',see:'Every 10 seconds a batch prints only the matching rows; about 4% of events match.',focus:['zSpark']}),
+   W(60,'# let it run for a minute, then:'),
+   C({term:'T3',label:'Stop it',code:'q.stop()',run:()=>stopQuery(S.vars.q),what:'Stops the alert query.',see:'The query is marked stopped.',focus:['zSpark']})
+  ],
+  take:['Row-by-row work (filter, select) needs no state and no watermark.','If this shows rows but a windowed query later does not, the problem is windowing, not data.']},
+ {title:'Aggregate over event-time windows',short:'windows + watermark',
+  intro:'Now add state: count events per host per one-minute window of <code>event_time</code>, with a 30-second watermark.',
+  cmds:[
+   C({term:'T3',label:'Imports',code:'from pyspark.sql.functions import window, count, sum as _sum',run:()=>{},what:'<code>sum</code> is renamed <code>_sum</code> so it does not hide Python\'s own <code>sum</code>.',see:'No output.',focus:['zSpark']}),
+   C({term:'T3',label:'Define the windowed count',code:'per_minute = (events\n    .withWatermark("event_time", "30 seconds")\n    .groupBy(window(col("event_time"), "1 minute"), col("host"))\n    .agg(count("*").alias("events"), _sum("bytes").alias("total_bytes")))',run:()=>def('per_minute'),
+     what:'<code>window(…, "1 minute")</code> puts each event in a one-minute bucket by its event time. The watermark says: "accept events up to 30 seconds older than the newest one seen; drop anything older, and forget windows that can no longer change".',see:'"per_minute" is defined.',focus:['zSpark']}),
+   C({term:'T3',label:'Start it in update mode',code:'q = (per_minute.writeStream.format("console")\n     .outputMode("update").option("truncate", False)\n     .trigger(processingTime="15 seconds").start())',
+     run:()=>{ out('T3','WARN ResolveWriteToStream: Temporary checkpoint location created which is deleted normally when the query didn\'t fail: /tmp/temporary-'+uuid()+'.','warn'); S.vars.q=newQuery({kind:'agg',name:'per_minute',label:'q: per_minute',term:'T3',sink:'console',mode:'update',trigger:15,win:60,byHost:true,wmDelay:30,wmLabel:'30 seconds'}); },
+     what:'<code>update</code> prints only the windows whose counts changed in this batch, so you see results quickly. Spark keeps the open windows in <strong>state</strong> between batches.',see:'The grid shows each host\'s count per minute. Dark cells were updated in the last batch, grey ones were released after the watermark passed. Late events land in the "dropped" list instead of the grid.',focus:['zSpark']}),
+   W(45,'# capture three batches for your deliverable')
+  ],
+  take:['Event-time windows group by when things happened, so re-running gives the same answer.','State is what makes aggregation possible, and the watermark is what lets Spark release it.','<code>update</code> mode is for watching; counts for the current minute grow batch by batch.']},
+ {title:'Prove the watermark drops late data',short:'narrow vs wide',
+  intro:'Run the same 5-minute count twice: one with a 30-second watermark, one with 60 minutes, and compare.',
+  cmds:[
+   C({term:'T3',label:'Stop the per-minute query',code:'q.stop()',run:()=>stopQuery(S.vars.q),what:'Frees the console for the comparison.',see:'per_minute is stopped.',focus:['zSpark']}),
+   C({term:'T3',label:'Start a narrow and a wide query',code:'for wm, name in [("30 seconds", "narrow"), ("60 minutes", "wide")]:\n    agg = (events.withWatermark("event_time", wm)\n           .groupBy(window(col("event_time"), "5 minutes"))\n           .agg(count("*").alias(f"events_{name}")))\n    (agg.writeStream.format("console").outputMode("update")\n     .option("truncate", False)\n     .queryName(name)\n     .trigger(processingTime="20 seconds").start())',
+     run:()=>{ out('T3','WARN ResolveWriteToStream: Temporary checkpoint location created which is deleted normally when the query didn\'t fail: /tmp/temporary-'+uuid()+'.\nWARN ResolveWriteToStream: Temporary checkpoint location created which is deleted normally when the query didn\'t fail: /tmp/temporary-'+uuid()+'.','warn');
+       newQuery({kind:'agg',name:'narrow',label:'narrow (30 s)',term:'T3',sink:'console',mode:'update',trigger:20,win:300,byHost:false,wmDelay:30,wmLabel:'30 seconds'});
+       newQuery({kind:'agg',name:'wide',label:'wide (60 min)',term:'T3',sink:'console',mode:'update',trigger:20,win:300,byHost:false,wmDelay:3600,wmLabel:'60 minutes'}); },
+     what:'The loop starts two queries that differ only in the watermark. Both print to the same console, and the column name (<code>events_narrow</code> or <code>events_wide</code>) tells you which is which. One subtlety: a query has no watermark until its first batch of data has been seen, so narrow may count a few late events at the very start; after that it drops them.',see:'Two bookmarks follow the lanes. In the bar chart, older windows on the left fill in only for the wide query: those are the late events the narrow one dropped.',focus:['zSpark']}),
+   W(120,'# watch both consoles for two minutes, then:'),
+   C({term:'T3',label:'Stop both',code:'for s in spark.streams.active: s.stop()',run:()=>S.queries.forEach(stopQuery),what:'<code>spark.streams.active</code> lists every running query in this session; the loop stops each.',see:'Both queries stopped. The drop counter shows how many late events the narrow query refused.',focus:['zSpark']})
+  ],
+  take:['The narrow watermark drops late events; the wide one counts them.','Which is right depends on the requirement: fast, final alerts or complete reports. See the discussion at the end.']},
+ {title:'Write results to Parquet with a checkpoint',short:'Parquet sink',
+  intro:'A real sink: Parquet files plus a checkpoint folder. Results appear only after each window closes.',
+  cmds:[
+   C({term:'T3',label:'Define the sink query',code:'sink = (events\n    .withWatermark("event_time", "1 minute")\n    .groupBy(window(col("event_time"), "1 minute"), col("host"))\n    .agg(count("*").alias("events"), _sum("bytes").alias("total_bytes"))\n    .selectExpr("window.start AS window_start", "window.end AS window_end",\n                "host", "events", "total_bytes"))',run:()=>def('sink'),
+     what:'The same per-minute count, with a 1-minute watermark, and the window struct flattened into two columns because Parquet files are easier to use with plain columns.',see:'"sink" is defined.',focus:['zSpark']}),
+   C({term:'T3',label:'Start writing Parquet',code:'q = (sink.writeStream.format("parquet")\n     .outputMode("append")\n     .option("path", "/tmp/lab2b/out")\n     .option("checkpointLocation", "/tmp/lab2b/ckpt")\n     .trigger(processingTime="30 seconds").start())',
+     run:()=>{ addFs('/tmp/lab2b','dir'); S.vars.q=newQuery({kind:'agg',name:'parquet',label:'q: parquet sink',term:'T3',sink:'parquet',mode:'append',trigger:30,win:60,byHost:true,wmDelay:60,wmLabel:'1 minute',path:'/tmp/lab2b/out',ckPath:'/tmp/lab2b/ckpt'}); },
+     what:'Files can only be appended to, so the mode must be <code>append</code>: a window is written once, after the watermark passes its end, and never changed. The checkpoint folder records, for every batch, which Kafka offsets were read and what state was held.',see:'/tmp/lab2b/out and /tmp/lab2b/ckpt appear. The ckpt folder gets offsets/ and commits/ files every batch, but no part files appear yet: windows are still open.',focus:['zSpark','zMachine']}),
+   W(180,'# after 3 minutes, in another terminal:'),
+   C({term:'T4',label:'List the output folder',code:'ls /tmp/lab2b/out',run:()=>{ const f=S.files['/tmp/lab2b/out']||[]; out('T4',['_spark_metadata',...f.map(x=>x.name)].join('  ')); },
+     what:'A new terminal (T4) to look at the files while the query keeps running in T3. <code>_spark_metadata</code> is the file sink\'s own log of which part files are complete.',see:'Part files now exist: one per batch that closed at least one window.',focus:['zMachine']}),
+   C({term:'T4',label:'Open a second PySpark',code:'pyspark',run:()=>{ sparkStartOutput('T4',false); out('T4','WARN Utils: Service \'SparkUI\' could not bind on port 4040. Attempting port 4041.','warn'); S.terms.T4.mode='py'; S.spark.T4=true; addProc('spark4','SparkSubmit (second pyspark)',true,'T4','Spark UI :4041'); },
+     what:'A separate Spark session just for reading the results. Port 4040 is taken by the first one, so this one\'s UI moves to 4041.',see:'A second SparkSubmit process appears.',focus:['zMachine']}),
+   C({term:'T4',label:'Read the Parquet output',code:"spark.read.parquet('/tmp/lab2b/out').show()",run:()=>{ const rows=[]; (S.files['/tmp/lab2b/out']||[]).forEach(f=>f.rows.forEach(r=>rows.push(r))); out('T4',fmtTable(['window_start','window_end','host','events','total_bytes'],rows.map(r=>({window_start:stamp(r.ws),window_end:stamp(r.ws+60),host:r.host,events:r.events,total_bytes:r.bytes})))); out('T4',''); },
+     what:'An ordinary batch read of the folder. Spark uses <code>_spark_metadata</code> so it reads only complete files, never a half-written one.',see:'One row per host per closed minute, with final counts.',focus:['zSpark']})
+  ],
+  take:['File sinks need <code>append</code> mode, so output appears only after the watermark closes each window. An empty folder at first is correct.','The checkpoint is mandatory for file sinks: it is how Spark remembers what it has already read and written.']},
+ {title:'Kill and restart, and observe the checkpoint',short:'checkpoint restart',
+  intro:'Stop the query, let events pile up for a minute, restart with the same checkpoint, then compare with a fresh one.',
+  cmds:[
+   C({term:'T3',label:'Stop the query',code:'q.stop()',run:()=>{ stopQuery(S.vars.q); S.gap={from:S.t,to:null}; },what:'The producer keeps sending; nobody is reading.',see:'The Spark bookmark stops while the lanes keep growing.',focus:['zKafka','zSpark']}),
+   C({term:'T3',label:'Wait a minute',code:'# wait 60 seconds with the producer still running',wait:60,run:async(f)=>{ await waitSim(60,{fast:f}); },what:'About 3,000 events arrive that no query has read yet.',see:'The gap between the bookmark and the end of each lane grows.',focus:['zKafka']}),
+   C({term:'T3',label:'Restart with the same checkpoint',code:'q2 = (sink.writeStream.format("parquet")\n      .outputMode("append")\n      .option("path", "/tmp/lab2b/out")\n      .option("checkpointLocation", "/tmp/lab2b/ckpt")\n      .trigger(processingTime="30 seconds").start())',
+     run:()=>{ S.gap.to=S.t; const q=newQuery({kind:'agg',name:'parquet2',label:'q2: parquet sink (resumed)',term:'T3',sink:'parquet',mode:'append',trigger:30,win:60,byHost:true,wmDelay:60,wmLabel:'1 minute',path:'/tmp/lab2b/out',ckPath:'/tmp/lab2b/ckpt',firstBatchId:S.ck['/tmp/lab2b/ckpt'].lastBatch+1}); S.vars.q2=q; if(q.hist.length&&q.hist[q.hist.length-1].rows>0) S.evidence.ckpt=true; },
+     what:'Same query, same checkpoint. Spark reads the last committed offsets and state from <code>/tmp/lab2b/ckpt</code> and continues from there; <code>startingOffsets</code> is ignored when a checkpoint exists.',see:'The first batch is tall: it reads the whole backlog. The outlined minutes (produced while stopped) will be written like any other, with no duplicates.',focus:['zSpark','zKafka']}),
+   W(150,'# let it catch up and close the gap windows'),
+   C({term:'T1',label:'Look at the recorded offsets',code:'cat /tmp/lab2b/ckpt/offsets/* | tail -20',run:()=>{ const ck=S.ck['/tmp/lab2b/ckpt']; const list=[]; const n=ck.lastBatch; for(let b=Math.max(0,n-5);b<=n;b++){ const qq=S.queries.filter(x=>x.ckPath==='/tmp/lab2b/ckpt'); const hh=qq.flatMap(x=>x.hist).find(h=>h.id===b); const e=hh?hh.end:ck.offsets; list.push('v1',`{"batchWatermarkMs":${Math.max(0,Math.round(((hh?hh.at:S.t)-90)*1000)+1790553600000)},"batchTimestampMs":${Math.round((hh?hh.at:S.t)*1000)+1790553600000},"conf":{"spark.sql.streaming.stateStore.providerClass":"org.apache.spark.sql.execution.streaming.state.HDFSBackedStateStoreProvider","spark.sql.shuffle.partitions":"200"}}`,`{"live-events":{"2":${e[2]},"1":${e[1]},"0":${e[0]}}}`); } out('T1',list.slice(-20).join('\n')); },
+     what:'Each file in <code>offsets/</code> belongs to one batch: a version line, batch metadata (watermark and time), and the Kafka offset per partition that batch read up to. A matching file in <code>commits/</code> means that batch finished.',see:'The partition offsets climb batch by batch and match the bookmarks on the Kafka lanes.',focus:['zMachine']}),
+   C({term:'T4',label:'Extra check: any duplicates?',code:"df = spark.read.parquet('/tmp/lab2b/out')\nprint(df.count(), df.select('window_start', 'host').distinct().count())",
+     run:()=>{ const f=S.files['/tmp/lab2b/out']||[]; let n=0; const k=new Set(); f.forEach(x=>x.rows.forEach(r=>{n++;k.add(r.ws+'|'+r.host);})); out('T4',`${n} ${k.size}`); },
+     what:'Not in the lab sheet, but a good habit: the number of rows and the number of distinct (minute, host) pairs. Equal numbers mean no window was written twice.',see:'The two numbers match: the restart wrote nothing twice.',focus:['zSpark']}),
+   C({term:'T3',label:'Compare: a fresh checkpoint',code:'q3 = (sink.writeStream.format("parquet")\n      .outputMode("append")\n      .option("path", "/tmp/lab2b/out2")\n      .option("checkpointLocation", "/tmp/lab2b/ckpt2")\n      .trigger(processingTime="30 seconds").start())',
+     run:()=>{ S.vars.q3=newQuery({kind:'agg',name:'fresh',label:'q3: fresh checkpoint',term:'T3',sink:'parquet',mode:'append',trigger:30,win:60,byHost:true,wmDelay:60,wmLabel:'1 minute',path:'/tmp/lab2b/out2',ckPath:'/tmp/lab2b/ckpt2'}); S.focusQ=S.vars.q3; },
+     what:'The lab\'s "try again with a fresh checkpoint". With an empty checkpoint folder Spark falls back to <code>startingOffsets</code>, which defaults to <code>latest</code> for Kafka: it starts from now. (With <code>earliest</code> it would re-read the whole topic instead.)',see:'A second output row, out2, starts from the current minute only. Everything earlier, including the gap minutes, never appears in it.',focus:['zSpark']}),
+   W(150,'# let both run, then compare out and out2'),
+   C({term:'T4',label:'Compare the two outputs',code:"for path in ['/tmp/lab2b/out', '/tmp/lab2b/out2']:\n    print(path, spark.read.parquet(path).select('window_start').distinct().count(), 'minutes')",
+     run:()=>{ ['/tmp/lab2b/out','/tmp/lab2b/out2'].forEach(p=>{ const m=new Set(); (S.files[p]||[]).forEach(f=>f.rows.forEach(r=>m.add(r.ws))); out('T4',`${p} ${m.size} minutes`); }); S.evidence.fresh=true; },
+     what:'Counts how many distinct minutes each output covers.',see:'out covers every minute since step 9, gap included; out2 covers only the minutes since q3 started.',focus:['zSpark']})
+  ],
+  take:['Same checkpoint: resume exactly at the last committed offsets with the saved state, so the gap is processed and nothing is duplicated.','No checkpoint: the job falls back to <code>startingOffsets</code> and either skips what it missed (<code>latest</code>) or reprocesses everything (<code>earliest</code>).','Never share a checkpoint between two queries; q3 got its own.']},
+ {title:'Inspect the query metrics',short:'health metrics',
+  intro:'<code>lastProgress</code> holds the numbers you would monitor in production.',
+  cmds:[
+   C({term:'T3',label:'Print the last progress report',code:'import json\nprint(json.dumps(q2.lastProgress, indent=2))',
+     run:()=>{ const q=S.vars.q2; const b=q.hist[q.hist.length-1]; const inRate=+(b.rows/q.trigger).toFixed(1), procRate=+(b.rows/(b.dur/1000)).toFixed(1);
+       const off=a=>({"live-events":{"2":a[2],"1":a[1],"0":a[0]}});
+       const rep={id:q.id,runId:q.runId,name:null,timestamp:new Date(1790553600000+b.at*1000).toISOString(),batchId:b.id,numInputRows:b.rows,inputRowsPerSecond:inRate,processedRowsPerSecond:procRate,
+         durationMs:{addBatch:Math.round(b.dur*.7),commitOffsets:rnd(8,30),getBatch:0,latestOffset:rnd(2,9),queryPlanning:rnd(10,40),triggerExecution:b.dur,walCommit:rnd(8,30)},
+         eventTime:{avg:stamp(b.avgT||0).replace(' ','T')+'.000Z',max:stamp(b.maxT||0).replace(' ','T')+'.000Z',min:stamp(b.minT||0).replace(' ','T')+'.000Z',watermark:stamp(isFinite(q.wm)?q.wm:0).replace(' ','T')+'.000Z'},
+         stateOperators:[{operatorName:'stateStoreSave',numRowsTotal:q.state.size,numRowsUpdated:b.updated,numRowsRemoved:b.emitted,numRowsDroppedByWatermark:q.dropped,memoryUsedBytes:30000+q.state.size*420}],
+         sources:[{description:'KafkaV2[Subscribe[live-events]]',startOffset:off(b.start),endOffset:off(b.end),latestOffset:off(b.end),numInputRows:b.rows,inputRowsPerSecond:inRate,processedRowsPerSecond:procRate}],
+         sink:{description:'FileSink[/tmp/lab2b/out]',numOutputRows:-1}};
+       out('T3',JSON.stringify(rep,null,2)); S.evidence.metrics=true; S.focusQ=q; },
+     what:'The report for q2\'s most recent batch. Read three numbers: <code>inputRowsPerSecond</code> (how fast data arrives), <code>processedRowsPerSecond</code> (how fast Spark gets through it), and <code>stateOperators[0].numRowsTotal</code> (how many windows are held in memory).',see:'Processing rate is far above input rate, so the job keeps up. numRowsTotal stays around 10 to 20 (open minutes times hosts) because the watermark keeps releasing old windows. The Spark UI at http://localhost:4040 shows the same numbers as charts.',focus:['zSpark']})
+  ],
+  take:['Processing rate below input rate for a sustained period means the job is falling behind and will not recover on its own.','<code>numRowsTotal</code> that keeps growing means the watermark is not working: the out-of-memory failure waiting to happen.']},
+ {title:'Shut down cleanly',short:'shutdown',
+  intro:'Stop consumers before producers, then Kafka, and check nothing is left running.',
+  cmds:[
+   C({term:'T3',label:'Stop every query',code:'for s in spark.streams.active: s.stop()',run:()=>S.queries.forEach(stopQuery),what:'Stops q2 and q3.',see:'No query is running; bookmarks leave the lanes.',focus:['zSpark']}),
+   C({term:'T3',label:'Leave the main PySpark',code:'exit()',run:()=>{ S.terms.T3.mode='shell'; S.spark.T3=false; rmProc('spark3'); },what:'Ends the Spark driver in T3.',see:'One SparkSubmit process disappears.',focus:['zMachine']}),
+   C({term:'T4',label:'Leave the second PySpark',code:'exit()',run:()=>{ S.terms.T4.mode='shell'; S.spark.T4=false; rmProc('spark4'); },what:'Not on the lab sheet, but the check session from step 9 is still a running Java process. Close it too.',see:'The second SparkSubmit disappears.',focus:['zMachine']}),
+   C({term:'T2',label:'Stop the producer',code:'^C   (press Ctrl+C in the producer terminal)',run:()=>{ S.producer.on=false; rmProc('producer'); S.terms.T2.mode='shell'; out('T2','^CTraceback (most recent call last):\n  File "/home/hadoop/lab2b/producer.py", line 36, in <module>\n    time.sleep(0.02)\nKeyboardInterrupt','err'); },
+     what:'Ctrl+C interrupts the Python program. The traceback ending in <code>KeyboardInterrupt</code> is how Python reports that; it is not a crash.',see:'The lanes stop growing; the Python process is gone.',focus:['zKafka','zMachine']}),
+   C({term:'T1',label:'Stop Kafka',code:'cd /opt/kafka && bin/kafka-server-stop.sh',run:()=>{ S.terms.T1.cwd='/opt/kafka'; S.kafka.state='stopping'; S.kafka.stopAt=S.t+3; const p=proc('kafka'); if(p) p.state='stopping'; },
+     what:'<code>&amp;&amp;</code> runs the second command only if the first succeeded. The stop script signals the broker to shut down cleanly, flushing its logs. The topics and their data stay on disk for next time.',see:'The broker goes "stopping" then disappears. The partition folders remain in /tmp/kraft-combined-logs.',focus:['zKafka','zMachine']}),
+   C({term:'T1',label:'Check what Java processes are left',code:'jps',run:async(f)=>{ await waitSim(4,{fast:f,speed:6}); const j=S.procs.filter(p=>p.jvm).map(p=>`${p.pid} ${p.key==='kafka'?'Kafka':p.key.startsWith('spark')?'SparkSubmit':'ConsoleConsumer'}`); j.push(`${newPid()} Jps`); out('T1',j.join('\n')); },
+     what:'<code>jps</code> lists running Java processes only. The producer was Python, so it would never appear here.',see:'Only "Jps" itself: everything from this lab has stopped.',focus:['zMachine']})
+  ],
+  take:['Stop readers before writers, then the broker.','<code>jps</code> shows only Java processes: Kafka and Spark, but never the Python producer.','Data in Kafka and in /tmp/lab2b/out stays on disk after shutdown; keep the output until you submit.']}
+];
+
+/* ================= step UI ================= */
+let cur=0;
+const done=STEPS.map(s=>s.cmds.map(()=>false));
+function stepDone(i){ return done[i].every(Boolean); }
+function nextCmd(){ for(let i=0;i<STEPS.length;i++) for(let j=0;j<STEPS[i].cmds.length;j++) if(!done[i][j]) return [i,j]; return null; }
+function renderRail(){
+  $('#rail').innerHTML=STEPS.map((s,i)=>`<button role="tab" aria-selected="${i===cur}" class="${i===cur?'cur':''} ${stepDone(i)?'done':''}" data-i="${i}"><b>${i+1}</b>${s.short}</button>`).join('');
+}
+$('#rail').addEventListener('click',e=>{ const b=e.target.closest('button[data-i]'); if(!b) return; cur=+b.dataset.i; renderStep(); renderRail(); });
+function renderStep(){
+  const s=STEPS[cur], nx=nextCmd();
+  let h=`<div class="step-head"><h2>Step ${cur+1}. ${s.title}</h2><p class="mb-2">${s.intro}</p></div>`;
+  const behind=nx && nx[0]<cur;
+  if(behind) h+=`<div class="ff-box"><p class="mb-2">Steps before this one have not been run yet, so this step cannot start. Run them yourself, or let the simulator run them quickly for you.</p><button class="btn btn-ink btn-sm" id="ffBtn">Run steps ${nx[0]+1} to ${cur} for me</button></div>`;
+  h+='<div class="cmd-list" id="cmdList">';
+  s.cmds.forEach((c,j)=>{
+    const isNext=nx&&nx[0]===cur&&nx[1]===j, isDone=done[cur][j];
+    h+=`<div class="cmd ${isDone?'done':''} ${isNext?'next':''}" id="cmd${j}">
+      <div class="cmd-top"><span class="term-badge ${c.term}">${c.term}</span><span class="cmd-label">${c.label}</span>
+      <span class="status">${isDone?'done':''}</span>
+      <button class="btn btn-sm ${isNext?'btn-ink':'btn-line'} run" data-j="${j}" ${isNext&&!S.busy?'':'disabled'}>${isDone?'Ran':c.wait?'Wait':c.code.startsWith('^C')?'Press Ctrl+C':'Run'}</button></div>
+      <pre>${esc(c.code)}</pre>
+      ${isDone?`<div class="cmd-explain"><p>${c.what}</p><p class="see mb-0">What changed: ${c.see}</p></div>`:''}
+    </div>`;
+  });
+  if(nx && nx[0]===cur && s.cmds.length-nx[1]>1) h+=`<button class="btn btn-line btn-sm mb-2" id="runRest" ${S.busy?'disabled':''}>Run the rest of this step</button>`;
+  if(stepDone(cur)) h+=`<div class="step-takeaway"><div class="panel-title mb-1">What this step taught</div><ul>${s.take.map(t=>`<li>${t}</li>`).join('')}</ul>${cur<STEPS.length-1?`<button class="btn btn-ink btn-sm mt-2" id="nextStep">Go to step ${cur+2}</button>`:`<a class="btn btn-ink btn-sm mt-2" href="#conclusion">Read what the lab teaches</a>`}</div>`;
+  h+='</div>';
+  $('#stepPane').innerHTML=h;
+  const list=$('#cmdList'), tgt=list&&(list.querySelector('.cmd.next')||list.querySelector('.step-takeaway'));
+  if(list&&tgt&&keepScroll===null) list.scrollTop=Math.max(0,tgt.offsetTop-list.offsetTop-8);
+  if(keepScroll!==null&&list){ list.scrollTop=keepScroll; keepScroll=null; }
+}
+let keepScroll=null;
+$('#stepPane').addEventListener('click',async e=>{
+  const r=e.target.closest('button.run'); if(r&&!r.disabled){ await runCmd(cur,+r.dataset.j,false); return; }
+  if(e.target.id==='nextStep'){ cur++; renderStep(); renderRail(); $('#sim').scrollIntoView(); return; }
+  if(e.target.id==='runRest'){ const nx=nextCmd(); for(let j=nx[1];j<STEPS[cur].cmds.length;j++){ await runCmd(cur,j,false); } return; }
+  if(e.target.id==='ffBtn'){ await fastForward(cur); }
+});
+function focusZones(z){ ['zMachine','zKafka','zSpark'].forEach(id=>$('#'+id).classList.toggle('focus',z.includes(id))); const sys=$('#sys'); const first=z.map(id=>$('#'+id)).sort((x,y)=>x.offsetTop-y.offsetTop).pop(); if(first && getComputedStyle(sys).position==='sticky'){ const zs=z.includes('zSpark')?$('#zSpark'):first; sys.scrollTo({top:Math.max(0,zs.offsetTop-52),behavior:reduceMotion?'auto':'smooth'}); } }
+async function runCmd(i,j,fast){
+  if(S.busy) return; const c=STEPS[i].cmds[j]; S.busy=true;
+  showTerm(c.term); if(!c.code.startsWith('^C')) echo(c.term,c.code); focusZones(c.focus||[]);
+  if(!fast) renderStep();
+  try{ await c.run(fast); } catch(err){ console.error(err); out(c.term,'(simulator error: '+err.message+')','err'); }
+  done[i][j]=true; S.busy=false;
+  if(!fast){ renderStep(); renderRail(); renderAll(); const el=$('#cmd'+j); if(el && hasGsap && !reduceMotion) gsap.fromTo(el.querySelector('.cmd-explain'),{opacity:0},{opacity:1,duration:.4}); }
+}
+async function fastForward(upTo){
+  fastMode=true; const btn=$('#ffBtn'); if(btn){ btn.disabled=true; btn.textContent='Running…'; }
+  let nx;
+  while((nx=nextCmd()) && nx[0]<upTo){ await runCmd(nx[0],nx[1],true); }
+  fastMode=false; lastReal=performance.now();
+  renderStep(); renderRail(); renderAll();
+}
+window.__sim={S,STEPS,fastForward,runCmd,nextCmd,done};
+renderRail(); renderStep(); renderAll();
+})();
+</script>
+</body>
+</html>
